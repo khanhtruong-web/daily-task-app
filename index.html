@@ -844,6 +844,8 @@
         storageKeyExpires: 'focusdaily_gdrive_expires',
         storageKeyClientId: 'focusdaily_gdrive_client_id',
         storageKeyLastSync: 'focusdaily_gdrive_last_sync',
+        storageKeyFileId: 'focusdaily_gdrive_file_id',
+        storageKeyUpdatedAt: 'focusdaily_tasks_updated_at',
         defaultClientId: '1021854109683-0kj78fbvijm164grl2f27lnfva9k6l7v.apps.googleusercontent.com'
     };
 
@@ -932,8 +934,10 @@
 
     // Save tasks to local cache and trigger auto-sync to Google Drive
     function persistTasksLocally() {
+        const updatedAt = new Date().toISOString();
         try {
             localStorage.setItem('focusdaily_tasks_v2', JSON.stringify(state.tasks));
+            localStorage.setItem(GOOGLE_CONFIG.storageKeyUpdatedAt, updatedAt);
         } catch (e) {
             console.warn("Could not save to localStorage:", e);
         }
@@ -1067,12 +1071,26 @@
         restoreGoogleSession();
     }
 
+    function handleTokenExpired() {
+        console.warn("Token expired, attempting silent refresh...");
+        googleAccessToken = null;
+        localStorage.removeItem(GOOGLE_CONFIG.storageKeyToken);
+        if (googleTokenClient && googleUser && googleUser.email) {
+            try {
+                googleTokenClient.requestAccessToken({ prompt: '', hint: googleUser.email });
+            } catch (e) {
+                console.warn("Silent refresh failed:", e);
+            }
+        }
+    }
+
     // Restore persistent session from localStorage & trigger silent refresh
     async function restoreGoogleSession() {
         const savedUser = localStorage.getItem(GOOGLE_CONFIG.storageKeyUser);
         const savedToken = localStorage.getItem(GOOGLE_CONFIG.storageKeyToken);
         const expiresAt = parseInt(localStorage.getItem(GOOGLE_CONFIG.storageKeyExpires) || '0', 10);
         const lastSync = localStorage.getItem(GOOGLE_CONFIG.storageKeyLastSync);
+        googleDriveFileId = localStorage.getItem(GOOGLE_CONFIG.storageKeyFileId) || null;
 
         if (lastSync) {
             const timeEl = document.getElementById('lastSyncTimeText');
@@ -1088,17 +1106,11 @@
                 if (savedToken && Date.now() < expiresAt) {
                     googleAccessToken = savedToken;
                     console.log("Token is still valid. Auto-pulling from Drive...");
-                    pullFromGoogleDrive(false);
+                    pullFromGoogleDrive(false, true);
                 } else {
                     // Token expired: Trigger silent refresh with user email hint
                     console.log("Session found, refreshing token in background...");
-                    if (googleTokenClient && googleUser.email) {
-                        try {
-                            googleTokenClient.requestAccessToken({ prompt: '', hint: googleUser.email });
-                        } catch (err) {
-                            console.warn("Silent refresh fallback:", err);
-                        }
-                    }
+                    handleTokenExpired();
                 }
             } catch (e) {
                 console.warn("Could not restore session:", e);
@@ -1169,6 +1181,8 @@
         localStorage.removeItem(GOOGLE_CONFIG.storageKeyToken);
         localStorage.removeItem(GOOGLE_CONFIG.storageKeyUser);
         localStorage.removeItem(GOOGLE_CONFIG.storageKeyExpires);
+        localStorage.removeItem(GOOGLE_CONFIG.storageKeyFileId);
+        localStorage.removeItem(GOOGLE_CONFIG.storageKeyUpdatedAt);
 
         updateGoogleAuthUI(false);
         closeGoogleDropdown();
@@ -1273,25 +1287,48 @@
     });
 
     // -------------------------------------------------------------
-    // GOOGLE DRIVE API SYNC OPERATIONS
+    // GOOGLE DRIVE API SYNC OPERATIONS (ROBUST REST + MULTI-DEVICE)
     // -------------------------------------------------------------
     async function getOrCreateDriveFileId() {
         if (googleDriveFileId) return googleDriveFileId;
+
+        // Try cached File ID from localStorage first to save API roundtrips
+        const cached = localStorage.getItem(GOOGLE_CONFIG.storageKeyFileId);
+        if (cached && cached.length > 5) {
+            googleDriveFileId = cached;
+            return googleDriveFileId;
+        }
+
         if (!googleAccessToken) return null;
 
         try {
             const query = encodeURIComponent(`name = '${GOOGLE_CONFIG.fileName}' and trashed = false`);
-            const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,modifiedTime)`, {
+            const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&spaces=drive&orderBy=modifiedTime desc&fields=files(id,name,modifiedTime)`, {
                 headers: { 'Authorization': `Bearer ${googleAccessToken}` }
             });
 
-            if (!res.ok) throw new Error("Search file error " + res.status);
+            if (res.status === 401) {
+                handleTokenExpired();
+                return null;
+            }
+
+            if (!res.ok) {
+                const errJson = await res.json().catch(() => ({}));
+                console.warn("Search Drive backup warning:", res.status, errJson);
+                if (res.status === 403 && JSON.stringify(errJson).includes('accessNotConfigured')) {
+                    throw new Error("GOOGLE_DRIVE_API_DISABLED");
+                }
+                return null;
+            }
+
             const data = await res.json();
             if (data.files && data.files.length > 0) {
                 googleDriveFileId = data.files[0].id;
+                localStorage.setItem(GOOGLE_CONFIG.storageKeyFileId, googleDriveFileId);
                 return googleDriveFileId;
             }
         } catch (e) {
+            if (e.message === "GOOGLE_DRIVE_API_DISABLED") throw e;
             console.warn("Search Drive backup warning:", e);
         }
         return null;
@@ -1314,71 +1351,111 @@
         if (syncSubText) syncSubText.textContent = 'Đang lưu lên Google Drive...';
 
         try {
+            const updatedAt = new Date().toISOString();
             const payload = {
                 app: "FocusDaily",
-                version: "2.2",
-                updatedAt: new Date().toISOString(),
+                version: "2.3",
+                updatedAt: updatedAt,
                 streakDays: state.streakDays,
                 tasks: state.tasks
             };
 
-            const fileId = await getOrCreateDriveFileId();
+            let fileId = await getOrCreateDriveFileId();
             const fileContent = JSON.stringify(payload, null, 2);
-            let uploadRes;
 
-            if (fileId) {
-                uploadRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
-                    method: 'PATCH',
+            // Step 1: If file doesn't exist yet on Drive, create metadata entry via clean REST JSON
+            if (!fileId) {
+                console.log("Creating new backup file entry on Google Drive...");
+                const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+                    method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${googleAccessToken}`,
                         'Content-Type': 'application/json'
                     },
-                    body: fileContent
-                });
-            } else {
-                const metadata = {
-                    name: GOOGLE_CONFIG.fileName,
-                    mimeType: 'application/json'
-                };
-                const form = new FormData();
-                form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-                form.append('file', new Blob([fileContent], { type: 'application/json' }));
-
-                uploadRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${googleAccessToken}` },
-                    body: form
+                    body: JSON.stringify({
+                        name: GOOGLE_CONFIG.fileName,
+                        mimeType: 'application/json'
+                    })
                 });
 
-                if (uploadRes.ok) {
-                    const created = await uploadRes.json();
-                    googleDriveFileId = created.id;
+                if (createRes.status === 401) {
+                    handleTokenExpired();
+                    throw new Error("Phiên đăng nhập đã hết hạn. Đang tự động làm mới...");
                 }
+
+                if (!createRes.ok) {
+                    const errBody = await createRes.json().catch(() => ({}));
+                    const errMsg = errBody.error?.message || `HTTP ${createRes.status}`;
+                    if (createRes.status === 403 && JSON.stringify(errBody).includes('accessNotConfigured')) {
+                        throw new Error("GOOGLE_DRIVE_API_DISABLED");
+                    }
+                    throw new Error(`Không thể tạo file trên Drive: ${errMsg}`);
+                }
+
+                const created = await createRes.json();
+                fileId = created.id;
+                googleDriveFileId = fileId;
+                localStorage.setItem(GOOGLE_CONFIG.storageKeyFileId, fileId);
             }
 
-            if (uploadRes && uploadRes.ok) {
-                const nowStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-                localStorage.setItem(GOOGLE_CONFIG.storageKeyLastSync, nowStr);
-                const timeEl = document.getElementById('lastSyncTimeText');
-                if (timeEl) timeEl.textContent = nowStr;
+            // Step 2: Upload/Update pure JSON file content using uploadType=media
+            const uploadRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${googleAccessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: fileContent
+            });
 
-                if (pill) pill.className = 'w-2 h-2 rounded-full bg-emerald-500';
-                if (syncDot) syncDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0 shadow-sm shadow-emerald-500/50';
-                if (syncSubText) syncSubText.textContent = 'Đã sao lưu lúc ' + nowStr;
-                if (isManual) showToast("☁️ Đã lưu toàn bộ việc lên Google Drive!", "success");
-            } else {
-                throw new Error("Upload response status: " + uploadRes?.status);
+            if (uploadRes.status === 401) {
+                handleTokenExpired();
+                throw new Error("Phiên đăng nhập đã hết hạn. Đang tự động làm mới...");
             }
+
+            if (uploadRes.status === 404) {
+                // File deleted on Drive, clear cache so next sync recreates it
+                localStorage.removeItem(GOOGLE_CONFIG.storageKeyFileId);
+                googleDriveFileId = null;
+                throw new Error("Bản lưu trên Drive đã bị xóa. Vui lòng bấm 'Lưu Drive' để tạo lại.");
+            }
+
+            if (!uploadRes.ok) {
+                const errBody = await uploadRes.json().catch(() => ({}));
+                const errMsg = errBody.error?.message || `HTTP ${uploadRes.status}`;
+                throw new Error(`Lỗi cập nhật Drive: ${errMsg}`);
+            }
+
+            // Successful Sync!
+            const nowStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+            localStorage.setItem(GOOGLE_CONFIG.storageKeyLastSync, nowStr);
+            localStorage.setItem(GOOGLE_CONFIG.storageKeyUpdatedAt, updatedAt);
+
+            const timeEl = document.getElementById('lastSyncTimeText');
+            if (timeEl) timeEl.textContent = nowStr;
+
+            if (pill) pill.className = 'w-2 h-2 rounded-full bg-emerald-500';
+            if (syncDot) syncDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0 shadow-sm shadow-emerald-500/50';
+            if (syncSubText) syncSubText.textContent = 'Đã sao lưu lúc ' + nowStr;
+            if (isManual) showToast("☁️ Đã lưu toàn bộ việc lên Google Drive thành công!", "success");
+
         } catch (err) {
             console.error("Google Drive sync error:", err);
             if (pill) pill.className = 'w-2 h-2 rounded-full bg-rose-500';
             if (syncDot) syncDot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0';
-            if (syncSubText) syncSubText.textContent = 'Lỗi lưu Drive (Dữ liệu vẫn an toàn trên máy)';
-            if (isManual) showToast("Lỗi lưu Drive. Hãy kiểm tra kết nối mạng", "warning");
+
+            if (err.message === "GOOGLE_DRIVE_API_DISABLED") {
+                if (syncSubText) syncSubText.textContent = 'Chưa bật Drive API trên Google Cloud';
+                if (isManual) showToast("⚠️ Vui lòng BẬT Google Drive API trong Google Cloud Console!", "warning");
+            } else {
+                const msg = err.message || 'Lỗi lưu Drive. Vui lòng kiểm tra lại';
+                if (syncSubText) syncSubText.textContent = msg;
+                if (isManual) showToast(msg, "warning");
+            }
         }
     }
 
-    async function pullFromGoogleDrive(isManual = false) {
+    async function pullFromGoogleDrive(isManual = false, isSilent = false) {
         if (!googleAccessToken) {
             if (isManual) handleGoogleLogin();
             return;
@@ -1387,7 +1464,11 @@
         try {
             const fileId = await getOrCreateDriveFileId();
             if (!fileId) {
-                syncToGoogleDrive(false);
+                console.log("No existing backup file found on Google Drive.");
+                // If local has tasks, upload them as initial backup
+                if (state.tasks && state.tasks.length > 0) {
+                    syncToGoogleDrive(false);
+                }
                 return;
             }
 
@@ -1395,31 +1476,54 @@
                 headers: { 'Authorization': `Bearer ${googleAccessToken}` }
             });
 
+            if (res.status === 401) {
+                handleTokenExpired();
+                return;
+            }
+
+            if (res.status === 404) {
+                localStorage.removeItem(GOOGLE_CONFIG.storageKeyFileId);
+                googleDriveFileId = null;
+                return;
+            }
+
             if (res.ok) {
                 const remoteData = await res.json();
                 if (remoteData && Array.isArray(remoteData.tasks)) {
-                    state.tasks = remoteData.tasks;
-                    if (remoteData.streakDays) {
-                        state.streakDays = remoteData.streakDays;
-                        localStorage.setItem('focusdaily_streak_days', state.streakDays.toString());
-                        updateStreakDisplay();
+                    const localUpdatedAt = localStorage.getItem(GOOGLE_CONFIG.storageKeyUpdatedAt) || '1970-01-01T00:00:00.000Z';
+                    const remoteUpdatedAt = remoteData.updatedAt || '1970-01-01T00:00:00.000Z';
+
+                    const hasLocalTasks = state.tasks && state.tasks.length > 0;
+                    if (new Date(remoteUpdatedAt) >= new Date(localUpdatedAt) || !hasLocalTasks) {
+                        state.tasks = remoteData.tasks;
+                        if (remoteData.streakDays !== undefined) {
+                            state.streakDays = remoteData.streakDays;
+                            localStorage.setItem('focusdaily_streak_days', state.streakDays.toString());
+                            updateStreakDisplay();
+                        }
+
+                        localStorage.setItem('focusdaily_tasks_v2', JSON.stringify(state.tasks));
+                        localStorage.setItem(GOOGLE_CONFIG.storageKeyUpdatedAt, remoteUpdatedAt);
+                        renderTasks();
+                        updateProgress();
+
+                        const nowStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                        localStorage.setItem(GOOGLE_CONFIG.storageKeyLastSync, nowStr);
+                        const timeEl = document.getElementById('lastSyncTimeText');
+                        if (timeEl) timeEl.textContent = nowStr;
+
+                        const syncDot = document.getElementById('syncDot');
+                        const syncSubText = document.getElementById('syncSubText');
+                        if (syncDot) syncDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0 shadow-sm shadow-emerald-500/50';
+                        if (syncSubText) syncSubText.textContent = 'Đã đồng bộ lúc ' + nowStr;
+
+                        if (isManual || (!isSilent && hasLocalTasks)) {
+                            showToast(`☁️ Đã đồng bộ ${state.tasks.length} việc từ Google Drive!`, "success");
+                        }
+                    } else if (new Date(localUpdatedAt) > new Date(remoteUpdatedAt) && hasLocalTasks) {
+                        console.log("Local tasks are newer than Drive backup. Auto-pushing to Drive...");
+                        syncToGoogleDrive(false);
                     }
-
-                    localStorage.setItem('focusdaily_tasks_v2', JSON.stringify(state.tasks));
-                    renderTasks();
-                    updateProgress();
-
-                    const nowStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-                    localStorage.setItem(GOOGLE_CONFIG.storageKeyLastSync, nowStr);
-                    const timeEl = document.getElementById('lastSyncTimeText');
-                    if (timeEl) timeEl.textContent = nowStr;
-
-                    const syncDot = document.getElementById('syncDot');
-                    const syncSubText = document.getElementById('syncSubText');
-                    if (syncDot) syncDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0 shadow-sm shadow-emerald-500/50';
-                    if (syncSubText) syncSubText.textContent = 'Đã tải từ Drive lúc ' + nowStr;
-
-                    if (isManual) showToast(`☁️ Đã tải về ${state.tasks.length} task mới nhất từ Google Drive!`, "success");
                 }
             }
         } catch (e) {
@@ -1427,6 +1531,27 @@
             if (isManual) showToast("Không thể tải bản lưu từ Google Drive", "warning");
         }
     }
+
+    // Auto-sync listeners for multi-device harmony (Phone & Computer)
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && googleAccessToken) {
+            console.log("App resumed/tab visible -> Checking for remote changes from other devices...");
+            pullFromGoogleDrive(false, true);
+        }
+    });
+
+    window.addEventListener('focus', () => {
+        if (googleAccessToken) {
+            pullFromGoogleDrive(false, true);
+        }
+    });
+
+    // Periodic background sync check every 45s if tab is open
+    setInterval(() => {
+        if (googleAccessToken && document.visibilityState === 'visible') {
+            pullFromGoogleDrive(false, true);
+        }
+    }, 45000);
 
     // Client ID Modal
     function openGoogleConfigModal() {
