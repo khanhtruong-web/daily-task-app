@@ -121,6 +121,15 @@
         .is-phone-frame .phone-notch {
             display: flex;
         }
+
+        .is-phone-frame nav {
+            position: absolute !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            border-bottom-left-radius: 46px;
+            border-bottom-right-radius: 46px;
+        }
     </style>
 </head>
 <body class="bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-full font-sans antialiased selection:bg-emerald-500 selection:text-white transition-colors duration-200">
@@ -261,7 +270,7 @@
         </header>
 
         <!-- Main Scrollable Content Area -->
-        <main class="flex-1 max-w-5xl w-full mx-auto px-3.5 sm:px-6 py-4 sm:py-6 space-y-5 pb-[calc(env(safe-area-inset-bottom,16px)+5rem)] md:pb-8 overflow-y-auto">
+        <main class="flex-1 max-w-5xl w-full mx-auto px-3.5 sm:px-6 py-4 sm:py-6 space-y-5 pb-[calc(env(safe-area-inset-bottom,20px)+8rem)] sm:pb-36 overflow-y-auto">
             
             <!-- SECTION 1: TODAY PLAN & GREETING HERO -->
             <div id="viewToday" class="space-y-4 sm:space-y-5">
@@ -474,6 +483,9 @@
                         <p class="text-xs text-slate-400 max-w-xs mt-0.5">Bạn đã hoàn thành mọi mục tiêu hoặc chưa nhập việc hôm nay.</p>
                     </div>
                 </section>
+
+                <!-- Bottom Safe Margin Spacer so last task is never covered by bottom nav -->
+                <div class="h-14 sm:h-20 w-full shrink-0" aria-hidden="true"></div>
             </div>
 
             <!-- SECTION 2: CALENDAR VIEW -->
@@ -532,6 +544,8 @@
                         </div>
                     </div>
                 </div>
+                <!-- Bottom Safe Margin Spacer -->
+                <div class="h-14 sm:h-20 w-full shrink-0" aria-hidden="true"></div>
             </div>
 
             <!-- SECTION 3: POMODORO & HABIT STREAK -->
@@ -602,6 +616,8 @@
                         </div>
                     </div>
                 </div>
+                <!-- Bottom Safe Margin Spacer -->
+                <div class="h-14 sm:h-20 w-full shrink-0" aria-hidden="true"></div>
             </div>
 
             <!-- SECTION 4: GOOGLE DRIVE & SETTINGS -->
@@ -678,11 +694,13 @@
                         </div>
                     </div>
                 </div>
+                <!-- Bottom Safe Margin Spacer -->
+                <div class="h-14 sm:h-20 w-full shrink-0" aria-hidden="true"></div>
             </div>
         </main>
 
         <!-- Bottom Mobile Navigation Bar (Always reachable by thumb on mobile) -->
-        <nav class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 select-none">
+        <nav class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 select-none pb-[env(safe-area-inset-bottom,0px)]">
             <div class="max-w-md mx-auto px-4 h-16 flex items-center justify-around">
                 
                 <!-- Tab Today -->
