@@ -1,0 +1,2313 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>FocusDaily - Kế Hoạch Hằng Ngày &amp; Google Drive</title>
+    
+    <!-- PWA & Mobile Web App Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="FocusDaily">
+    <meta name="theme-color" content="#10b981">
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+    <link rel="apple-touch-icon" href="./favicon.svg">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js for crystal-clear synthesized audio notifications -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+    <!-- Google Identity Services (GIS) for Google Login & Drive API -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', '-apple-system', 'Arial', 'sans-serif'],
+                        mono: ['ui-monospace', 'SFMono-Regular', 'Consolas', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Safe Area Padding for iOS Notches and Android Navigation Bars */
+        :root {
+            --sat: env(safe-area-inset-top, 0px);
+            --sab: env(safe-area-inset-bottom, 0px);
+            --sal: env(safe-area-inset-left, 0px);
+            --sar: env(safe-area-inset-right, 0px);
+        }
+
+        body {
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Smooth custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.35);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(156, 163, 175, 0.65);
+        }
+
+        .task-enter {
+            animation: slideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-6px) scale(0.98);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* Desktop Mobile Phone Mockup Frame Styling */
+        .phone-frame-wrapper {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .is-phone-frame {
+            max-width: 428px !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35), 0 0 0 12px #1e293b, 0 0 0 14px #475569 !important;
+            border-radius: 46px !important;
+            overflow: hidden !important;
+            min-height: 860px !important;
+            max-height: 92vh !important;
+            display: flex !important;
+            flex-direction: column !important;
+        }
+
+        /* Simulated Dynamic Island / Speaker on phone mockup */
+        .phone-notch {
+            display: none;
+        }
+        .is-phone-frame .phone-notch {
+            display: flex;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-full font-sans antialiased selection:bg-emerald-500 selection:text-white transition-colors duration-200">
+
+    <!-- Outer Wrapper (Applies simulated phone frame on desktop when enabled) -->
+    <div id="appContainer" class="phone-frame-wrapper min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col relative">
+
+        <!-- Phone Simulated Top Island / Speaker (Visible only in desktop phone mockup mode) -->
+        <div class="phone-notch h-7 bg-slate-900 w-full shrink-0 items-center justify-between px-7 select-none text-[11px] text-slate-400">
+            <span id="mockClock" class="font-semibold text-white">09:41</span>
+            <div class="w-24 h-4 bg-black rounded-full mx-auto flex items-center justify-center">
+                <div class="w-2.5 h-2.5 rounded-full bg-slate-900 mr-2"></div>
+                <div class="w-2 h-2 rounded-full bg-blue-900/60"></div>
+            </div>
+            <div class="flex items-center gap-1.5 text-white">
+                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L12 22l7.03-4.39C20.26 16.07 21 14.12 21 12c0-4.97-4.03-9-9-9z"/></svg>
+                <div class="w-4 h-2 border border-white rounded-xs p-0.5 flex items-center"><div class="h-full w-3 bg-emerald-400 rounded-2xs"></div></div>
+            </div>
+        </div>
+
+        <!-- Top Global Header -->
+        <header class="sticky top-0 z-30 backdrop-blur-md bg-white/90 dark:bg-slate-900/90 border-b border-slate-200/80 dark:border-slate-800 transition-colors shrink-0">
+            <div class="max-w-5xl mx-auto px-3.5 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
+                
+                <!-- Logo & Brand -->
+                <div class="flex items-center space-x-2.5 min-w-0">
+                    <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-md shadow-emerald-500/20 shrink-0">
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                        </svg>
+                    </div>
+                    <div class="truncate">
+                        <div class="flex items-center gap-1.5">
+                            <h1 class="text-sm sm:text-base font-bold tracking-tight text-slate-900 dark:text-white truncate">FocusDaily</h1>
+                            <span class="text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded-full font-bold uppercase tracking-wider bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-400 shrink-0">Pro</span>
+                        </div>
+                        <p class="text-[11px] text-slate-400 hidden md:block truncate">Kỷ luật hôm nay, tự do ngày mai</p>
+                    </div>
+                </div>
+
+                <!-- Header Actions -->
+                <div class="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+                    
+                    <!-- Live Clock (Hidden on very small mobile) -->
+                    <div class="hidden lg:flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-mono text-slate-700 dark:text-slate-300">
+                        <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span id="liveClock">00:00:00</span>
+                    </div>
+
+                    <!-- Mobile Frame Toggle Button (Visible on wide screens) -->
+                    <button 
+                        id="phoneFrameToggleBtn" 
+                        onclick="togglePhoneFrameMode()" 
+                        class="hidden md:inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+                        title="Chuyển đổi giữa khuôn hình điện thoại và màn hình rộng">
+                        <svg class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                        </svg>
+                        <span id="phoneFrameLabel">Khuôn hình Mobile</span>
+                    </button>
+
+                    <!-- Google Drive Sync & Login Pill Button -->
+                    <div id="googleAuthContainer" class="relative">
+                        <button 
+                            id="googleAuthBtn" 
+                            onclick="toggleGoogleMenu()" 
+                            class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:border-emerald-500 transition active:scale-95"
+                        >
+                            <!-- Google Logo Icon -->
+                            <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24">
+                                <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+                                <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.24v3.15C3.26 21.36 7.33 24 12 24z"/>
+                                <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.24C.45 8.15 0 9.92 0 12s.45 3.85 1.24 5.42l4.04-3.15z"/>
+                                <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.24 6.58l4.04 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                            </svg>
+                            <span id="googleAuthLabel" class="max-w-[100px] sm:max-w-[140px] truncate">Đăng nhập Drive</span>
+                            <span id="googleSyncPill" class="hidden w-2 h-2 rounded-full bg-emerald-500"></span>
+                        </button>
+
+                        <!-- Google User Dropdown Menu -->
+                        <div id="googleUserDropdown" class="hidden absolute right-0 mt-2 w-72 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 p-3.5 z-50 space-y-2.5">
+                            <div id="googleUserInfo" class="flex items-center gap-2.5 pb-2.5 border-b border-slate-100 dark:border-slate-800">
+                                <img id="googleUserAvatar" src="" alt="Avatar" class="w-9 h-9 rounded-full border border-slate-200 dark:border-slate-700 object-cover">
+                                <div class="min-w-0 flex-1">
+                                    <p id="googleUserName" class="text-xs font-bold text-slate-800 dark:text-slate-100 truncate"></p>
+                                    <p id="googleUserEmail" class="text-[11px] text-slate-400 truncate"></p>
+                                </div>
+                            </div>
+
+                            <div class="space-y-1.5 text-xs">
+                                <div class="flex items-center justify-between text-[11px]">
+                                    <span class="text-slate-400">Trạng thái Drive:</span>
+                                    <span id="googleDriveStatus" class="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Đã kết nối
+                                    </span>
+                                </div>
+                                <div class="text-[11px] text-slate-400 flex items-center justify-between">
+                                    <span>Lần lưu gần nhất:</span>
+                                    <span id="lastSyncTimeText" class="font-mono text-slate-600 dark:text-slate-300">Chưa lưu</span>
+                                </div>
+                            </div>
+
+                            <div class="pt-1.5 flex flex-col gap-1.5 border-t border-slate-100 dark:border-slate-800">
+                                <button onclick="syncToGoogleDrive(true)" class="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition active:scale-95 shadow-xs">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                                    <span>Lưu lên Google Drive ngay</span>
+                                </button>
+                                <button onclick="pullFromGoogleDrive(true)" class="w-full py-2 px-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                    <span>Tải bản mới từ Drive về</span>
+                                </button>
+                                <button onclick="openGoogleConfigModal()" class="w-full py-1.5 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 text-[11px] text-center transition">
+                                    ⚙️ Cài đặt Google Client ID
+                                </button>
+                                <button onclick="handleGoogleLogout()" class="w-full py-1.5 text-rose-600 hover:text-rose-700 text-[11px] font-semibold text-center transition">
+                                    Đăng xuất tài khoản
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dark Mode Toggle -->
+                    <button id="themeToggleBtn" aria-label="Đổi giao diện sáng/tối" class="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-800 transition-colors">
+                        <svg id="themeIconSun" class="w-4 h-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                        </svg>
+                        <svg id="themeIconMoon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Scrollable Content Area -->
+        <main class="flex-1 max-w-5xl w-full mx-auto px-3.5 sm:px-6 py-4 sm:py-6 space-y-5 pb-[calc(env(safe-area-inset-bottom,16px)+5rem)] md:pb-8 overflow-y-auto">
+            
+            <!-- SECTION 1: TODAY PLAN & GREETING HERO -->
+            <div id="viewToday" class="space-y-4 sm:space-y-5">
+                
+                <!-- Greeting & Progress Hero -->
+                <section class="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-5">
+                    <!-- Today's Greeting & Progress -->
+                    <div class="md:col-span-2 bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-900/60 rounded-2xl p-4 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-xs relative overflow-hidden">
+                        <div class="absolute -right-10 -bottom-10 w-44 h-44 bg-emerald-500/10 dark:bg-emerald-500/5 rounded-full blur-2xl pointer-events-none"></div>
+
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3 sm:mb-4">
+                            <div>
+                                <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                                    <span id="displayDate" class="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Đang tải ngày...</span>
+                                    <span id="selectedDateBadge" class="hidden text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-300/50">
+                                        Lịch sử: <span id="selectedDateLabel"></span>
+                                    </span>
+                                    <button id="returnTodayBtn" onclick="selectDate(getTodayStr())" class="hidden text-[10px] text-emerald-600 dark:text-emerald-400 underline font-semibold hover:opacity-80">
+                                        Quay về hôm nay
+                                    </button>
+                                </div>
+                                <h2 id="greetingTitle" class="text-lg sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-1">Chào buổi sáng!</h2>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Lập danh sách việc quan trọng để làm chủ ngày hôm nay.</p>
+                            </div>
+
+                            <!-- Progress Score Badge -->
+                            <div class="flex items-center gap-3 bg-white/90 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 p-2.5 sm:p-3 rounded-xl shadow-xs self-start sm:self-auto">
+                                <div class="text-right">
+                                    <span class="block text-[10px] text-slate-400 font-medium">Tiến độ</span>
+                                    <span id="progressPercentText" class="text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400">0%</span>
+                                </div>
+                                <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-mono font-bold text-xs">
+                                    <span id="taskRatioText">0/0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Linear Progress Bar -->
+                        <div class="w-full bg-slate-100 dark:bg-slate-800 h-2 sm:h-2.5 rounded-full overflow-hidden">
+                            <div id="progressBar" class="bg-gradient-to-r from-emerald-500 to-teal-500 h-full rounded-full transition-all duration-500 w-0"></div>
+                        </div>
+                    </div>
+
+                    <!-- 8:00 AM Notification Status Widget -->
+                    <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between space-y-3">
+                        <div class="space-y-1.5">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
+                                    </svg>
+                                    Nhắc việc 8:00 AM
+                                </span>
+                                <span id="notifStatusBadge" class="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400">
+                                    Chờ kiểm tra
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                                Tự động nhắc nhở và phát chuông êm dịu lúc 8h sáng để bạn không bỏ lỡ lên plan ngày.
+                            </p>
+                        </div>
+
+                        <div class="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                            <button id="enableNotifBtn" class="flex-1 py-1.5 px-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 rounded-xl transition shadow-xs flex items-center justify-center gap-1">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                                <span>Bật thông báo 8h</span>
+                            </button>
+                            <button id="testNotifBtn" class="py-1.5 px-2.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition" title="Thử chuông ngay">
+                                🔔 Thử
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Task Creation Bar -->
+                <section class="bg-white dark:bg-slate-900 rounded-2xl p-3.5 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
+                    <form id="newTaskForm" class="space-y-3" onsubmit="event.preventDefault(); handleAddTask();">
+                        <div class="flex items-center gap-2">
+                            <div class="relative flex-1">
+                                <input 
+                                    type="text" 
+                                    id="taskInput"
+                                    placeholder="Thêm việc mới... (hỗ trợ dán link & ảnh Ctrl+V)" 
+                                    required
+                                    autocomplete="off"
+                                    class="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl px-3.5 py-2.5 sm:py-3 text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition placeholder:text-slate-400"
+                                />
+                            </div>
+                            <button 
+                                type="submit" 
+                                class="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-semibold text-xs sm:text-sm px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl transition shadow-xs flex items-center gap-1.5 shrink-0">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path>
+                                </svg>
+                                <span>Thêm</span>
+                            </button>
+                        </div>
+
+                        <!-- Expandable Note & Link Inputs -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div class="relative">
+                                <input 
+                                    type="url" 
+                                    id="taskLinkInput"
+                                    placeholder="🔗 Link tài liệu / Web liên quan..."
+                                    class="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 rounded-lg px-3 py-1.5 text-xs focus:ring-1 focus:ring-emerald-500 outline-none"
+                                />
+                            </div>
+                            <div class="relative">
+                                <input 
+                                    type="text" 
+                                    id="taskNotesInput"
+                                    placeholder="📝 Ghi chú chi tiết, lưu ý kết quả..."
+                                    class="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 rounded-lg px-3 py-1.5 text-xs focus:ring-1 focus:ring-emerald-500 outline-none"
+                                />
+                            </div>
+                        </div>
+
+                        <!-- Image Paste & File Upload Trigger -->
+                        <div class="flex flex-wrap items-center gap-2 pt-0.5">
+                            <label class="cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 text-xs transition">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                </svg>
+                                <span>Dán ảnh (Ctrl+V) hoặc Chọn ảnh</span>
+                                <input type="file" id="imageFileInput" accept="image/*" class="hidden" multiple onchange="handleImageFileSelect(event)">
+                            </label>
+
+                            <div id="imageDraftPreviewContainer" class="flex flex-wrap items-center gap-1.5">
+                                <!-- Preview thumbnails of pasted screenshots appear here -->
+                            </div>
+                        </div>
+
+                        <!-- Priority & Category Selector Row -->
+                        <div class="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs">
+                            <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                                <span class="text-slate-400 text-[11px]">Độ ưu tiên:</span>
+                                <div class="inline-flex rounded-lg p-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                    <button type="button" onclick="setPriority('low')" id="btnPrioLow" class="prio-opt px-2 py-0.5 rounded-md text-[11px] font-medium text-slate-600 dark:text-slate-300 transition">Thấp</button>
+                                    <button type="button" onclick="setPriority('medium')" id="btnPrioMed" class="prio-opt px-2 py-0.5 rounded-md text-[11px] font-medium bg-white dark:bg-slate-700 shadow-xs text-amber-600 dark:text-amber-400 transition">Vừa</button>
+                                    <button type="button" onclick="setPriority('high')" id="btnPrioHigh" class="prio-opt px-2 py-0.5 rounded-md text-[11px] font-medium text-slate-600 dark:text-slate-300 transition">Gấp ⚡</button>
+                                </div>
+
+                                <span class="text-slate-400 text-[11px] ml-1">Nhóm:</span>
+                                <select id="taskCategorySelect" class="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-0.5 text-xs outline-none">
+                                    <option value="work">💼 Công việc</option>
+                                    <option value="personal">🌱 Cá nhân</option>
+                                    <option value="study">📚 Học tập</option>
+                                    <option value="health">💪 Sức khỏe</option>
+                                </select>
+                            </div>
+                        </div>
+                    </form>
+                </section>
+
+                <!-- Task List Section -->
+                <section class="space-y-3">
+                    <!-- Filter Tabs -->
+                    <div class="flex items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-2.5">
+                        <div class="flex items-center gap-1 overflow-x-auto pb-0.5">
+                            <button onclick="setFilter('all')" id="filterAll" class="filter-tab px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 transition shrink-0">
+                                Tất cả (<span id="countAll">0</span>)
+                            </button>
+                            <button onclick="setFilter('active')" id="filterActive" class="filter-tab px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition shrink-0">
+                                Cần làm (<span id="countActive">0</span>)
+                            </button>
+                            <button onclick="setFilter('completed')" id="filterCompleted" class="filter-tab px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition shrink-0">
+                                Đã xong (<span id="countCompleted">0</span>)
+                            </button>
+                            <button onclick="setFilter('high')" id="filterHigh" class="filter-tab px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition shrink-0">
+                                Gấp ⚡ (<span id="countHigh">0</span>)
+                            </button>
+                        </div>
+
+                        <button onclick="confirmClearCompleted()" class="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition text-[11px] font-medium shrink-0">
+                            Xóa đã xong
+                        </button>
+                    </div>
+
+                    <!-- Dynamic Task List -->
+                    <div id="taskList" class="space-y-2.5 min-h-[140px]">
+                        <!-- Dynamic Tasks Render Here -->
+                    </div>
+
+                    <!-- Empty State -->
+                    <div id="emptyState" class="hidden flex-col items-center justify-center py-10 px-4 text-center rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+                        <div class="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-2.5">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                        </div>
+                        <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">Không có công việc nào!</h3>
+                        <p class="text-xs text-slate-400 max-w-xs mt-0.5">Bạn đã hoàn thành mọi mục tiêu hoặc chưa nhập việc hôm nay.</p>
+                    </div>
+                </section>
+            </div>
+
+            <!-- SECTION 2: CALENDAR VIEW -->
+            <div id="viewCalendar" class="hidden space-y-4">
+                <div class="bg-white dark:bg-slate-900 rounded-2xl p-3.5 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+                    
+                    <!-- Month Header & Navigation -->
+                    <div class="flex items-center justify-between bg-slate-50 dark:bg-slate-800/60 p-2.5 sm:p-3 rounded-xl border border-slate-200 dark:border-slate-700/80">
+                        <button onclick="changeCalendarMonth(-1)" class="p-1.5 sm:px-3 sm:py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-white dark:hover:bg-slate-700 text-xs font-semibold text-emerald-700 dark:text-emerald-400 transition flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                            <span class="hidden sm:inline">Tháng trước</span>
+                        </button>
+
+                        <div class="text-center">
+                            <h3 id="calMonthYearHeading" class="text-sm sm:text-lg font-bold text-emerald-700 dark:text-emerald-400 tracking-tight">September 2026</h3>
+                            <p class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400">Bấm vào ô ngày để xem chi tiết</p>
+                        </div>
+
+                        <button onclick="changeCalendarMonth(1)" class="p-1.5 sm:px-3 sm:py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-white dark:hover:bg-slate-700 text-xs font-semibold text-emerald-700 dark:text-emerald-400 transition flex items-center gap-1">
+                            <span class="hidden sm:inline">Tháng sau</span>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                        </button>
+                    </div>
+
+                    <!-- Weekdays Header -->
+                    <div class="grid grid-cols-7 gap-1 text-center text-[11px] font-bold text-emerald-800 dark:text-emerald-300">
+                        <div class="py-1 rounded bg-emerald-100/70 dark:bg-emerald-950/60">CN</div>
+                        <div class="py-1 rounded bg-emerald-100/70 dark:bg-emerald-950/60">T2</div>
+                        <div class="py-1 rounded bg-emerald-100/70 dark:bg-emerald-950/60">T3</div>
+                        <div class="py-1 rounded bg-emerald-100/70 dark:bg-emerald-950/60">T4</div>
+                        <div class="py-1 rounded bg-emerald-100/70 dark:bg-emerald-950/60">T5</div>
+                        <div class="py-1 rounded bg-emerald-100/70 dark:bg-emerald-950/60">T6</div>
+                        <div class="py-1 rounded bg-emerald-100/70 dark:bg-emerald-950/60">T7</div>
+                    </div>
+
+                    <!-- Calendar Days Grid -->
+                    <div id="calendarGrid" class="grid grid-cols-7 gap-1 sm:gap-1.5">
+                        <!-- Populated dynamically -->
+                    </div>
+
+                    <!-- Day Inspector Box -->
+                    <div id="calDayInspector" class="p-3 sm:p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                <h4 class="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                    Chi tiết: <span id="inspectorDateStr" class="font-mono text-emerald-600 dark:text-emerald-400">Chưa chọn</span>
+                                </h4>
+                            </div>
+                            <button onclick="selectDateFromInspector()" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-semibold transition">
+                                👉 Chọn ngày này
+                            </button>
+                        </div>
+                        <div id="inspectorTasksList" class="space-y-1.5 max-h-48 overflow-y-auto pr-1 text-xs">
+                            <p class="text-slate-400 italic py-1">Bấm vào bất kỳ ô ngày nào ở trên để xem các task cụ thể.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION 3: POMODORO & HABIT STREAK -->
+            <div id="viewPomodoro" class="hidden space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    
+                    <!-- Pomodoro Timer Box -->
+                    <div class="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between text-center space-y-4">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <svg class="w-4 h-4 text-rose-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/>
+                                </svg>
+                                Đồng hồ Focus (25m)
+                            </span>
+                            <span id="pomoStatusText" class="text-[10px] px-2 py-0.5 rounded-full font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">Nghỉ</span>
+                        </div>
+
+                        <div class="my-2">
+                            <div id="pomoDisplay" class="text-4xl sm:text-5xl font-extrabold font-mono text-slate-900 dark:text-white tracking-tight">25:00</div>
+                            <p class="text-xs text-slate-400 mt-1">Làm duy nhất 1 nhiệm vụ trọng tâm</p>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <button id="pomoStartBtn" onclick="togglePomodoro()" class="flex-1 py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-xs active:scale-95">
+                                Bắt đầu
+                            </button>
+                            <button onclick="resetPomodoro()" class="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition" title="Đặt lại">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Neuroscience Habit Streak Banner -->
+                    <div class="md:col-span-2 bg-[#101424] text-white p-5 sm:p-6 rounded-2xl shadow-xs flex flex-col justify-between relative overflow-hidden border border-slate-800 space-y-3">
+                        <div class="relative z-10 space-y-2.5">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide bg-emerald-950/80 text-emerald-400 border border-emerald-800/60">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                    🧠 KHOA HỌC THẦN KINH &amp; KỶ LUẬT
+                                </span>
+                                <div class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-950/70 text-amber-300 border border-amber-800/50">
+                                    <span>🔥 Chuỗi: <b id="streakCountText" class="font-bold text-amber-200">21 ngày</b></span>
+                                    <button onclick="incrementStreak()" class="ml-1 px-1 text-[10px] bg-amber-500/30 hover:bg-amber-500/50 text-amber-200 rounded font-bold" title="Cộng thêm 1 ngày">+1</button>
+                                </div>
+                            </div>
+
+                            <h3 id="streakSloganTitle" class="text-sm sm:text-base font-bold text-white leading-snug">
+                                "Hành trình ngày thứ <span id="streakDayNum" class="text-emerald-400">21</span>: Khắc sâu nếp gấp não bộ để biến kỷ luật thành phản xạ tự nhiên."
+                            </h3>
+
+                            <p class="text-xs text-slate-300 leading-relaxed" id="streakSloganDesc">
+                                💡 Giai đoạn hình thành liên kết nơ-ron: 66 ngày là chu kỳ tối ưu của não bộ để một hành động khó trở thành thói quen vô thức.
+                            </p>
+                        </div>
+
+                        <div class="relative z-10 pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-slate-800/80 text-xs">
+                            <div class="flex items-center gap-2 text-slate-400 text-[11px]">
+                                <span>Tiến trình 66 ngày:</span>
+                                <div class="w-24 bg-slate-800 h-2 rounded-full overflow-hidden">
+                                    <div id="streakProgressBar" class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-500" style="width: 32%;"></div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="resetSloganToOriginal()" class="text-slate-400 hover:text-emerald-400 underline text-[11px]">↺ Gốc</button>
+                                <button onclick="refreshDailyQuote()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-[11px] font-medium">Đổi câu</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION 4: GOOGLE DRIVE & SETTINGS -->
+            <div id="viewDrive" class="hidden space-y-4">
+                <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-xs space-y-5">
+                    
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <svg class="w-5 h-5 text-emerald-600" fill="currentColor" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM19 18H6c-2.21 0-4-1.79-4-4 0-2.05 1.53-3.76 3.56-3.97l1.07-.11.5-.95C8.08 7.14 9.94 6 12 6c2.62 0 4.88 1.86 5.39 4.43l.3 1.5 1.53.11c1.56.1 2.78 1.41 2.78 2.96 0 1.65-1.35 3-3 3z"/></svg>
+                            Đồng Bộ Google Drive &amp; Sao Lưu Dữ Liệu
+                        </h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Lưu trữ tự động và bảo mật tuyệt đối trực tiếp trên Google Drive của bạn.</p>
+                    </div>
+
+                    <!-- Account Card -->
+                    <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-11 h-11 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center overflow-hidden shrink-0">
+                                <img id="driveTabAvatar" src="https://placehold.co/80x80/10b981/ffffff?text=G" class="w-full h-full object-cover">
+                            </div>
+                            <div class="min-w-0">
+                                <h4 id="driveTabUserName" class="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">Chưa đăng nhập Google</h4>
+                                <p id="driveTabUserEmail" class="text-xs text-slate-400 truncate">Đăng nhập để đồng bộ task tự động trên mọi thiết bị</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2 self-start sm:self-auto">
+                            <button id="driveTabLoginBtn" onclick="handleGoogleLogin()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-xs transition">
+                                Đăng nhập Google
+                            </button>
+                            <button id="driveTabLogoutBtn" onclick="handleGoogleLogout()" class="hidden px-3 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold hover:text-rose-600 transition">
+                                Đăng xuất
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Actions Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <button onclick="syncToGoogleDrive(true)" class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 bg-white dark:bg-slate-900 text-left transition flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-950 text-emerald-600 flex items-center justify-center shrink-0">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                            </div>
+                            <div>
+                                <h5 class="text-xs font-bold text-slate-800 dark:text-slate-200">Lưu lên Google Drive ngay</h5>
+                                <p class="text-[11px] text-slate-400">Ghi đè file focusdaily_backup.json</p>
+                            </div>
+                        </button>
+
+                        <button onclick="pullFromGoogleDrive(true)" class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 bg-white dark:bg-slate-900 text-left transition flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-600 flex items-center justify-center shrink-0">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                            </div>
+                            <div>
+                                <h5 class="text-xs font-bold text-slate-800 dark:text-slate-200">Tải từ Google Drive về</h5>
+                                <p class="text-[11px] text-slate-400">Đồng bộ bản mới nhất về máy này</p>
+                            </div>
+                        </button>
+                    </div>
+
+                    <!-- Local JSON Backup Section -->
+                    <div class="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                        <h4 class="text-xs font-bold text-slate-700 dark:text-slate-300">Sao lưu ngoại tuyến (Offline JSON):</h4>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button onclick="exportJsonFile()" class="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-medium transition">
+                                📥 Tải file backup JSON về máy
+                            </button>
+                            <label class="cursor-pointer px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-medium transition">
+                                📤 Khôi phục từ file JSON
+                                <input type="file" id="jsonFileInput" accept=".json" class="hidden" onchange="importJsonFile(event)">
+                            </label>
+                            <button onclick="openGoogleConfigModal()" class="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-medium transition">
+                                ⚙️ Cấu hình Google Client ID
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Bottom Mobile Navigation Bar (Always reachable by thumb on mobile) -->
+        <nav class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 select-none">
+            <div class="max-w-md mx-auto px-4 h-16 flex items-center justify-around">
+                
+                <!-- Tab Today -->
+                <button onclick="switchTab('today')" id="tabBtnToday" class="nav-tab-btn flex flex-col items-center justify-center flex-1 py-1 text-emerald-600 dark:text-emerald-400 font-bold transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                    </svg>
+                    <span class="text-[10px] mt-0.5">Kế hoạch</span>
+                </button>
+
+                <!-- Tab Calendar -->
+                <button onclick="switchTab('calendar')" id="tabBtnCalendar" class="nav-tab-btn flex flex-col items-center justify-center flex-1 py-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-medium transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                    <span class="text-[10px] mt-0.5">Lịch</span>
+                </button>
+
+                <!-- Tab Pomodoro Focus -->
+                <button onclick="switchTab('pomodoro')" id="tabBtnPomodoro" class="nav-tab-btn flex flex-col items-center justify-center flex-1 py-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-medium transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span class="text-[10px] mt-0.5">Focus</span>
+                </button>
+
+                <!-- Tab Drive & Settings -->
+                <button onclick="switchTab('drive')" id="tabBtnDrive" class="nav-tab-btn flex flex-col items-center justify-center flex-1 py-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-medium transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                    </svg>
+                    <span class="text-[10px] mt-0.5">Drive</span>
+                </button>
+            </div>
+        </nav>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="fixed bottom-20 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
+
+    <!-- Lightbox Modal for Screenshots -->
+    <div id="lightboxModal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 hidden" onclick="closeLightbox()">
+        <div class="relative max-w-4xl max-h-[90vh] flex flex-col items-center justify-center" onclick="event.stopPropagation()">
+            <img id="lightboxImage" src="" alt="Preview" class="max-w-full max-h-[85vh] rounded-xl shadow-2xl object-contain">
+            <button onclick="closeLightbox()" class="absolute -top-10 right-0 text-white bg-slate-800/80 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1">
+                <span>Đóng (ESC)</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Google Drive Client ID Config Modal -->
+    <div id="googleConfigModal" class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-2 sm:p-4 hidden">
+        <div class="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950 flex items-center justify-center text-blue-600">
+                        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM19 18H6c-2.21 0-4-1.79-4-4 0-2.05 1.53-3.76 3.56-3.97l1.07-.11.5-.95C8.08 7.14 9.94 6 12 6c2.62 0 4.88 1.86 5.39 4.43l.3 1.5 1.53.11c1.56.1 2.78 1.41 2.78 2.96 0 1.65-1.35 3-3 3z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-sm sm:text-base font-bold text-slate-900 dark:text-white">Cấu hình Google OAuth Client ID</h3>
+                        <p class="text-xs text-slate-400">Kết nối Google Drive cá nhân của bạn</p>
+                    </div>
+                </div>
+                <button onclick="closeGoogleConfigModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
+            </div>
+
+            <div class="space-y-3 text-xs text-slate-600 dark:text-slate-300">
+                <p>
+                    File sao lưu <code>focusdaily_backup.json</code> được lưu trực tiếp trong Google Drive cá nhân của bạn, tuyệt đối bảo mật và không qua bất kỳ máy chủ trung gian nào.
+                </p>
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Google OAuth Client ID:</label>
+                    <input 
+                        type="text" 
+                        id="googleClientIdInput" 
+                        placeholder="xxxx-xxxxxxxx.apps.googleusercontent.com"
+                        class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-mono focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                </div>
+                <div class="bg-blue-50 dark:bg-blue-950/40 p-3 rounded-xl border border-blue-200 dark:border-blue-800 text-[11px] space-y-1.5">
+                    <p class="font-bold text-blue-700 dark:text-blue-300">💡 3 bước tạo Google Client ID miễn phí:</p>
+                    <p>1. Mở <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="underline text-blue-600 font-semibold">Google Cloud Console</a> &gt; Tạo Project mới.</p>
+                    <p>2. Bật API <b>Google Drive API</b> trong <i>APIs &amp; Services</i> &gt; <i>Enabled APIs</i>.</p>
+                    <p>3. Tạo Credentials &gt; OAuth client ID (Web application). Thêm domain Vercel và <code>http://localhost</code> vào mục <b>Authorized JavaScript origins</b>.</p>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button onclick="closeGoogleConfigModal()" class="px-3 py-1.5 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Đóng</button>
+                <button onclick="saveGoogleConfig()" class="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs">Lưu cấu hình</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Confirmation Modal (Zero browser confirm()) -->
+    <div id="customModal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+            <div class="flex items-center gap-3 text-rose-600 dark:text-rose-400">
+                <div class="w-10 h-10 rounded-full bg-rose-50 dark:bg-rose-950/60 flex items-center justify-center shrink-0">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h4 id="modalTitle" class="text-sm sm:text-base font-bold text-slate-900 dark:text-white">Xác nhận thao tác</h4>
+                    <p id="modalDesc" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Bạn có chắc chắn muốn xóa mục này?</p>
+                </div>
+            </div>
+            <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button id="modalCancelBtn" class="px-3.5 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition">Hủy</button>
+                <button id="modalConfirmBtn" class="px-4 py-1.5 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition">Đồng ý</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // =========================================================================
+    // FOCUSDAILY APPLICATION ENGINE (RESPONSIVE + GOOGLE DRIVE + PERSISTENCE)
+    // =========================================================================
+
+    function formatDateKey(d) {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    function getTodayStr() {
+        return formatDateKey(new Date());
+    }
+
+    // Google OAuth 2.0 Configuration
+    const GOOGLE_CONFIG = {
+        scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
+        fileName: 'focusdaily_backup.json',
+        storageKeyToken: 'focusdaily_gdrive_token',
+        storageKeyUser: 'focusdaily_gdrive_user',
+        storageKeyExpires: 'focusdaily_gdrive_expires',
+        storageKeyClientId: 'focusdaily_gdrive_client_id',
+        storageKeyLastSync: 'focusdaily_gdrive_last_sync',
+        defaultClientId: '852174664871-v4o2t3f1m2e3p4q5r6s7t8u9v0w1x2y3.apps.googleusercontent.com'
+    };
+
+    let googleTokenClient = null;
+    let googleAccessToken = null;
+    let googleUser = null;
+    let googleDriveFileId = null;
+    let autoSyncTimer = null;
+
+    // Load initial tasks from localStorage
+    function loadSavedTasks() {
+        try {
+            const raw = localStorage.getItem('focusdaily_tasks_v2');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            }
+        } catch (e) {
+            console.warn("Could not load from localStorage:", e);
+        }
+        return null;
+    }
+
+    const state = {
+        currentTab: 'today',
+        selectedDate: getTodayStr(),
+        calendarYear: new Date().getFullYear(),
+        calendarMonth: new Date().getMonth(),
+        draftImages: [],
+        tasks: loadSavedTasks() || [
+            {
+                id: '1',
+                date: getTodayStr(),
+                title: 'Lên danh sách 3 mục tiêu trọng tâm hôm nay',
+                completed: true,
+                priority: 'high',
+                category: 'work',
+                notes: 'Hoàn thành việc quan trọng nhất vào đầu ngày!',
+                links: ['https://calendar.google.com'],
+                images: [],
+                createdAt: new Date().toISOString()
+            },
+            {
+                id: '2',
+                date: getTodayStr(),
+                title: 'Kiểm tra và đồng bộ kế hoạch lên Google Drive',
+                completed: false,
+                priority: 'medium',
+                category: 'work',
+                notes: 'Bấm nút Đăng nhập Drive ở góc phải trên',
+                links: ['https://drive.google.com'],
+                images: [],
+                createdAt: new Date().toISOString()
+            },
+            {
+                id: '3',
+                date: getTodayStr(),
+                title: 'Thực hiện 1 phiên Pomodoro tập trung 25 phút',
+                completed: false,
+                priority: 'low',
+                category: 'study',
+                notes: 'Duy trì chuỗi kỷ luật 66 ngày',
+                links: [],
+                images: [],
+                createdAt: new Date().toISOString()
+            }
+        ],
+        currentFilter: 'all',
+        selectedPriority: 'medium',
+        lastReminderDate: null,
+        reminderIntervalId: null,
+        clockIntervalId: null,
+        audioInitialized: false,
+        theme: localStorage.getItem('focusdaily_theme') || 'light',
+        isPhoneFrame: localStorage.getItem('focusdaily_phone_frame') === 'true',
+        streakDays: parseInt(localStorage.getItem('focusdaily_streak_days') || '21', 10),
+        currentQuoteIndex: 0,
+        pomodoro: {
+            timeLeft: 25 * 60,
+            totalDuration: 25 * 60,
+            isRunning: false,
+            interval: null,
+            mode: 'pomo'
+        }
+    };
+
+    // Save tasks to local cache and trigger auto-sync to Google Drive
+    function persistTasksLocally() {
+        try {
+            localStorage.setItem('focusdaily_tasks_v2', JSON.stringify(state.tasks));
+        } catch (e) {
+            console.warn("Could not save to localStorage:", e);
+        }
+
+        if (googleAccessToken) {
+            triggerDebouncedAutoSync();
+        }
+    }
+
+    function triggerDebouncedAutoSync() {
+        if (autoSyncTimer) clearTimeout(autoSyncTimer);
+        const pill = document.getElementById('googleSyncPill');
+        if (pill) {
+            pill.className = 'w-2 h-2 rounded-full bg-amber-400 animate-ping';
+        }
+        autoSyncTimer = setTimeout(() => {
+            syncToGoogleDrive(false);
+        }, 2000);
+    }
+
+    function getTasksForSelectedDate() {
+        return state.tasks.filter(t => t.date === state.selectedDate);
+    }
+
+    // Tab Switching for Thumb Navigation Bar
+    function switchTab(tabId) {
+        state.currentTab = tabId;
+        const views = {
+            today: document.getElementById('viewToday'),
+            calendar: document.getElementById('viewCalendar'),
+            pomodoro: document.getElementById('viewPomodoro'),
+            drive: document.getElementById('viewDrive')
+        };
+
+        const buttons = {
+            today: document.getElementById('tabBtnToday'),
+            calendar: document.getElementById('tabBtnCalendar'),
+            pomodoro: document.getElementById('tabBtnPomodoro'),
+            drive: document.getElementById('tabBtnDrive')
+        };
+
+        Object.keys(views).forEach(k => {
+            if (views[k]) {
+                if (k === tabId) {
+                    views[k].classList.remove('hidden');
+                } else {
+                    views[k].classList.add('hidden');
+                }
+            }
+            if (buttons[k]) {
+                if (k === tabId) {
+                    buttons[k].className = "nav-tab-btn flex flex-col items-center justify-center flex-1 py-1 text-emerald-600 dark:text-emerald-400 font-bold transition";
+                } else {
+                    buttons[k].className = "nav-tab-btn flex flex-col items-center justify-center flex-1 py-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-medium transition";
+                }
+            }
+        });
+
+        if (tabId === 'calendar') {
+            renderCalendarGrid();
+            inspectCalendarDay(state.selectedDate);
+        }
+    }
+
+    // Toggle Phone Frame Mockup on Desktop
+    function togglePhoneFrameMode() {
+        state.isPhoneFrame = !state.isPhoneFrame;
+        localStorage.setItem('focusdaily_phone_frame', state.isPhoneFrame.toString());
+        applyPhoneFrameMode();
+    }
+
+    function applyPhoneFrameMode() {
+        const container = document.getElementById('appContainer');
+        const label = document.getElementById('phoneFrameLabel');
+        if (state.isPhoneFrame) {
+            container.classList.add('is-phone-frame');
+            if (label) label.textContent = "Màn hình rộng";
+        } else {
+            container.classList.remove('is-phone-frame');
+            if (label) label.textContent = "Khuôn hình Mobile";
+        }
+    }
+
+    // -------------------------------------------------------------
+    // GOOGLE IDENTITY SERVICES & DRIVE PERSISTENT LOGIN ENGINE
+    // -------------------------------------------------------------
+    function getGoogleClientId() {
+        return localStorage.getItem(GOOGLE_CONFIG.storageKeyClientId) || GOOGLE_CONFIG.defaultClientId;
+    }
+
+    function initGoogleAuthClient() {
+        if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
+            setTimeout(initGoogleAuthClient, 400);
+            return;
+        }
+
+        const clientId = getGoogleClientId();
+        try {
+            googleTokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: clientId,
+                scope: GOOGLE_CONFIG.scope,
+                callback: handleTokenResponse,
+                error_callback: (err) => {
+                    console.error("Google OAuth error:", err);
+                    showToast("Đăng nhập Google thất bại hoặc bị hủy", "warning");
+                }
+            });
+            console.log("GIS Token Client initialized");
+        } catch (e) {
+            console.error("Failed to init GIS token client:", e);
+        }
+
+        restoreGoogleSession();
+    }
+
+    // Restore persistent session from localStorage & trigger silent refresh
+    async function restoreGoogleSession() {
+        const savedUser = localStorage.getItem(GOOGLE_CONFIG.storageKeyUser);
+        const savedToken = localStorage.getItem(GOOGLE_CONFIG.storageKeyToken);
+        const expiresAt = parseInt(localStorage.getItem(GOOGLE_CONFIG.storageKeyExpires) || '0', 10);
+        const lastSync = localStorage.getItem(GOOGLE_CONFIG.storageKeyLastSync);
+
+        if (lastSync) {
+            const timeEl = document.getElementById('lastSyncTimeText');
+            if (timeEl) timeEl.textContent = lastSync;
+        }
+
+        if (savedUser) {
+            try {
+                googleUser = JSON.parse(savedUser);
+                updateGoogleAuthUI(true);
+
+                // Check if current token is still valid (< 1 hr)
+                if (savedToken && Date.now() < expiresAt) {
+                    googleAccessToken = savedToken;
+                    console.log("Token is still valid. Auto-pulling from Drive...");
+                    pullFromGoogleDrive(false);
+                } else {
+                    // Token expired: Trigger silent refresh with user email hint
+                    console.log("Session found, refreshing token in background...");
+                    if (googleTokenClient && googleUser.email) {
+                        try {
+                            googleTokenClient.requestAccessToken({ prompt: '', hint: googleUser.email });
+                        } catch (err) {
+                            console.warn("Silent refresh fallback:", err);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn("Could not restore session:", e);
+            }
+        }
+    }
+
+    function handleGoogleLogin() {
+        if (!googleTokenClient) {
+            initGoogleAuthClient();
+        }
+
+        if (!googleTokenClient) {
+            showToast("Đang kết nối thư viện Google, vui lòng thử lại sau 2 giây", "info");
+            return;
+        }
+
+        const hint = googleUser ? googleUser.email : undefined;
+        googleTokenClient.requestAccessToken({ prompt: '', hint: hint });
+    }
+
+    async function handleTokenResponse(response) {
+        if (response.error) {
+            console.error("Token error:", response);
+            showToast("Lỗi cấp quyền: " + response.error, "warning");
+            return;
+        }
+
+        googleAccessToken = response.access_token;
+        const expiresInSec = parseInt(response.expires_in, 10) || 3500;
+        const expiresAt = Date.now() + (expiresInSec * 1000);
+
+        localStorage.setItem(GOOGLE_CONFIG.storageKeyToken, googleAccessToken);
+        localStorage.setItem(GOOGLE_CONFIG.storageKeyExpires, expiresAt.toString());
+
+        // Fetch User Info
+        try {
+            const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                headers: { 'Authorization': `Bearer ${googleAccessToken}` }
+            });
+            if (res.ok) {
+                googleUser = await res.json();
+                localStorage.setItem(GOOGLE_CONFIG.storageKeyUser, JSON.stringify(googleUser));
+                updateGoogleAuthUI(true);
+                showToast(`Xin chào ${googleUser.name}! Đã kết nối Google Drive`, "success");
+                pullFromGoogleDrive(false);
+            }
+        } catch (err) {
+            console.error("Could not fetch user info:", err);
+            updateGoogleAuthUI(true);
+        }
+    }
+
+    function handleGoogleLogout() {
+        if (googleAccessToken && typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
+            try {
+                google.accounts.oauth2.revoke(googleAccessToken, () => {});
+            } catch (e) {}
+        }
+
+        googleAccessToken = null;
+        googleUser = null;
+        googleDriveFileId = null;
+
+        localStorage.removeItem(GOOGLE_CONFIG.storageKeyToken);
+        localStorage.removeItem(GOOGLE_CONFIG.storageKeyUser);
+        localStorage.removeItem(GOOGLE_CONFIG.storageKeyExpires);
+
+        updateGoogleAuthUI(false);
+        closeGoogleDropdown();
+        showToast("Đã đăng xuất tài khoản Google", "info");
+    }
+
+    function updateGoogleAuthUI(isLoggedIn) {
+        const label = document.getElementById('googleAuthLabel');
+        const pill = document.getElementById('googleSyncPill');
+        const avatar = document.getElementById('googleUserAvatar');
+        const name = document.getElementById('googleUserName');
+        const email = document.getElementById('googleUserEmail');
+        const status = document.getElementById('googleDriveStatus');
+
+        const driveTabAvatar = document.getElementById('driveTabAvatar');
+        const driveTabUserName = document.getElementById('driveTabUserName');
+        const driveTabUserEmail = document.getElementById('driveTabUserEmail');
+        const driveTabLoginBtn = document.getElementById('driveTabLoginBtn');
+        const driveTabLogoutBtn = document.getElementById('driveTabLogoutBtn');
+
+        if (isLoggedIn && googleUser) {
+            const displayName = googleUser.given_name || googleUser.name || 'Google User';
+            if (label) label.textContent = displayName;
+            if (pill) {
+                pill.classList.remove('hidden');
+                pill.className = 'w-2 h-2 rounded-full bg-emerald-500';
+            }
+            const photoUrl = googleUser.picture || 'https://placehold.co/80x80/10b981/ffffff?text=G';
+            if (avatar) avatar.src = photoUrl;
+            if (name) name.textContent = googleUser.name || 'Google User';
+            if (email) email.textContent = googleUser.email || '';
+            if (status) {
+                status.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Đã kết nối';
+                status.className = "font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1";
+            }
+
+            if (driveTabAvatar) driveTabAvatar.src = photoUrl;
+            if (driveTabUserName) driveTabUserName.textContent = googleUser.name || 'Google User';
+            if (driveTabUserEmail) driveTabUserEmail.textContent = googleUser.email || '';
+            if (driveTabLoginBtn) driveTabLoginBtn.classList.add('hidden');
+            if (driveTabLogoutBtn) driveTabLogoutBtn.classList.remove('hidden');
+        } else {
+            if (label) label.textContent = "Đăng nhập Drive";
+            if (pill) pill.classList.add('hidden');
+            if (driveTabAvatar) driveTabAvatar.src = 'https://placehold.co/80x80/10b981/ffffff?text=G';
+            if (driveTabUserName) driveTabUserName.textContent = 'Chưa đăng nhập Google';
+            if (driveTabUserEmail) driveTabUserEmail.textContent = 'Đăng nhập để đồng bộ task tự động trên mọi thiết bị';
+            if (driveTabLoginBtn) driveTabLoginBtn.classList.remove('hidden');
+            if (driveTabLogoutBtn) driveTabLogoutBtn.classList.add('hidden');
+        }
+    }
+
+    function toggleGoogleMenu() {
+        if (!googleUser || !googleAccessToken) {
+            handleGoogleLogin();
+        } else {
+            const menu = document.getElementById('googleUserDropdown');
+            if (menu) menu.classList.toggle('hidden');
+        }
+    }
+
+    function closeGoogleDropdown() {
+        const menu = document.getElementById('googleUserDropdown');
+        if (menu) menu.classList.add('hidden');
+    }
+
+    document.addEventListener('click', (e) => {
+        const container = document.getElementById('googleAuthContainer');
+        if (container && !container.contains(e.target)) {
+            closeGoogleDropdown();
+        }
+    });
+
+    // -------------------------------------------------------------
+    // GOOGLE DRIVE API SYNC OPERATIONS
+    // -------------------------------------------------------------
+    async function getOrCreateDriveFileId() {
+        if (googleDriveFileId) return googleDriveFileId;
+        if (!googleAccessToken) return null;
+
+        try {
+            const query = encodeURIComponent(`name = '${GOOGLE_CONFIG.fileName}' and trashed = false`);
+            const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,modifiedTime)`, {
+                headers: { 'Authorization': `Bearer ${googleAccessToken}` }
+            });
+
+            if (!res.ok) throw new Error("Search file error " + res.status);
+            const data = await res.json();
+            if (data.files && data.files.length > 0) {
+                googleDriveFileId = data.files[0].id;
+                return googleDriveFileId;
+            }
+        } catch (e) {
+            console.warn("Search Drive backup warning:", e);
+        }
+        return null;
+    }
+
+    async function syncToGoogleDrive(isManual = false) {
+        if (!googleAccessToken) {
+            if (isManual) {
+                showToast("Vui lòng đăng nhập Google trước", "warning");
+                handleGoogleLogin();
+            }
+            return;
+        }
+
+        const pill = document.getElementById('googleSyncPill');
+        if (pill) pill.className = 'w-2 h-2 rounded-full bg-blue-500 animate-pulse';
+
+        try {
+            const payload = {
+                app: "FocusDaily",
+                version: "2.2",
+                updatedAt: new Date().toISOString(),
+                streakDays: state.streakDays,
+                tasks: state.tasks
+            };
+
+            const fileId = await getOrCreateDriveFileId();
+            const fileContent = JSON.stringify(payload, null, 2);
+            let uploadRes;
+
+            if (fileId) {
+                uploadRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${googleAccessToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: fileContent
+                });
+            } else {
+                const metadata = {
+                    name: GOOGLE_CONFIG.fileName,
+                    mimeType: 'application/json'
+                };
+                const form = new FormData();
+                form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+                form.append('file', new Blob([fileContent], { type: 'application/json' }));
+
+                uploadRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${googleAccessToken}` },
+                    body: form
+                });
+
+                if (uploadRes.ok) {
+                    const created = await uploadRes.json();
+                    googleDriveFileId = created.id;
+                }
+            }
+
+            if (uploadRes && uploadRes.ok) {
+                const nowStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                localStorage.setItem(GOOGLE_CONFIG.storageKeyLastSync, nowStr);
+                const timeEl = document.getElementById('lastSyncTimeText');
+                if (timeEl) timeEl.textContent = nowStr;
+
+                if (pill) pill.className = 'w-2 h-2 rounded-full bg-emerald-500';
+                if (isManual) showToast("☁️ Đã lưu toàn bộ việc lên Google Drive!", "success");
+            } else {
+                throw new Error("Upload response status: " + uploadRes?.status);
+            }
+        } catch (err) {
+            console.error("Google Drive sync error:", err);
+            if (pill) pill.className = 'w-2 h-2 rounded-full bg-rose-500';
+            if (isManual) showToast("Lỗi lưu Drive. Hãy kiểm tra kết nối mạng", "warning");
+        }
+    }
+
+    async function pullFromGoogleDrive(isManual = false) {
+        if (!googleAccessToken) {
+            if (isManual) handleGoogleLogin();
+            return;
+        }
+
+        try {
+            const fileId = await getOrCreateDriveFileId();
+            if (!fileId) {
+                syncToGoogleDrive(false);
+                return;
+            }
+
+            const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+                headers: { 'Authorization': `Bearer ${googleAccessToken}` }
+            });
+
+            if (res.ok) {
+                const remoteData = await res.json();
+                if (remoteData && Array.isArray(remoteData.tasks)) {
+                    state.tasks = remoteData.tasks;
+                    if (remoteData.streakDays) {
+                        state.streakDays = remoteData.streakDays;
+                        localStorage.setItem('focusdaily_streak_days', state.streakDays.toString());
+                        updateStreakDisplay();
+                    }
+
+                    localStorage.setItem('focusdaily_tasks_v2', JSON.stringify(state.tasks));
+                    renderTasks();
+                    updateProgress();
+
+                    const nowStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                    localStorage.setItem(GOOGLE_CONFIG.storageKeyLastSync, nowStr);
+                    const timeEl = document.getElementById('lastSyncTimeText');
+                    if (timeEl) timeEl.textContent = nowStr;
+
+                    if (isManual) showToast(`☁️ Đã tải về ${state.tasks.length} task mới nhất từ Google Drive!`, "success");
+                }
+            }
+        } catch (e) {
+            console.error("Pull from Drive error:", e);
+            if (isManual) showToast("Không thể tải bản lưu từ Google Drive", "warning");
+        }
+    }
+
+    // Client ID Modal
+    function openGoogleConfigModal() {
+        closeGoogleDropdown();
+        const modal = document.getElementById('googleConfigModal');
+        const input = document.getElementById('googleClientIdInput');
+        if (input) input.value = localStorage.getItem(GOOGLE_CONFIG.storageKeyClientId) || '';
+        if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeGoogleConfigModal() {
+        const modal = document.getElementById('googleConfigModal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    function saveGoogleConfig() {
+        const input = document.getElementById('googleClientIdInput');
+        const val = input ? input.value.trim() : '';
+        if (val) {
+            localStorage.setItem(GOOGLE_CONFIG.storageKeyClientId, val);
+            showToast("Đã lưu Google Client ID mới!", "success");
+            initGoogleAuthClient();
+        } else {
+            localStorage.removeItem(GOOGLE_CONFIG.storageKeyClientId);
+            showToast("Đã khôi phục Client ID mặc định", "info");
+            initGoogleAuthClient();
+        }
+        closeGoogleConfigModal();
+    }
+
+    // Local JSON Backup / Restore (Offline fallback)
+    function exportJsonFile() {
+        const payload = {
+            app: "FocusDaily",
+            version: "2.2",
+            exportedAt: new Date().toISOString(),
+            streakDays: state.streakDays,
+            tasks: state.tasks
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `focusdaily_backup_${formatDateKey(new Date())}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast("Đã tải file JSON sao lưu về máy!", "success");
+    }
+
+    function importJsonFile(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const parsed = JSON.parse(event.target.result);
+                if (Array.isArray(parsed.tasks)) {
+                    state.tasks = parsed.tasks;
+                    if (parsed.streakDays) state.streakDays = parsed.streakDays;
+                    persistTasksLocally();
+                    renderTasks();
+                    updateProgress();
+                    updateStreakDisplay();
+                    showToast(`Đã khôi phục ${parsed.tasks.length} task từ file JSON!`, "success");
+                } else {
+                    showToast("File JSON không hợp lệ", "warning");
+                }
+            } catch (err) {
+                showToast("Lỗi đọc file JSON", "warning");
+            }
+        };
+        reader.readAsText(file);
+        e.target.value = '';
+    }
+
+    // -------------------------------------------------------------
+    // AUDIO SYNTHESIS & MORNING 8:00 AM NOTIFICATIONS
+    // -------------------------------------------------------------
+    let synth = null;
+    let chimeSynth = null;
+
+    function initAudio() {
+        if (state.audioInitialized) return;
+        try {
+            if (typeof Tone !== 'undefined') {
+                Tone.start();
+                synth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: 'sine' },
+                    envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.8 }
+                }).toDestination();
+                synth.volume.value = -8;
+
+                chimeSynth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: 'triangle' },
+                    envelope: { attack: 0.02, decay: 0.4, sustain: 0.2, release: 1.2 }
+                }).toDestination();
+                chimeSynth.volume.value = -6;
+
+                state.audioInitialized = true;
+            }
+        } catch (e) {
+            console.warn("Audio Context init deferred:", e);
+        }
+    }
+
+    function playTaskCompleteSound() {
+        initAudio();
+        if (!synth) return;
+        try {
+            const now = Tone.now();
+            synth.triggerAttackRelease("G5", "16n", now);
+            synth.triggerAttackRelease("C6", "8n", now + 0.08);
+        } catch (err) {}
+    }
+
+    function playMorningReminderSound() {
+        initAudio();
+        if (!chimeSynth) return;
+        try {
+            const now = Tone.now();
+            chimeSynth.triggerAttackRelease(["C5", "E5"], "8n", now);
+            chimeSynth.triggerAttackRelease(["G5", "C6"], "4n", now + 0.2);
+            chimeSynth.triggerAttackRelease(["E6"], "2n", now + 0.45);
+        } catch (err) {}
+    }
+
+    function requestNotificationPermission(isManual = false) {
+        if (!("Notification" in window)) {
+            updatePermissionUI("unsupported");
+            return;
+        }
+
+        Notification.requestPermission().then(permission => {
+            updatePermissionUI(permission);
+            if (permission === "granted") {
+                showToast("Đã bật thông báo thành công!", "success");
+                initAudio();
+            } else if (permission === "denied" && isManual) {
+                showToast("Quyền thông báo bị từ chối trong trình duyệt", "warning");
+            }
+        });
+    }
+
+    function updatePermissionUI(permission) {
+        const badge = document.getElementById('notifStatusBadge');
+        const enableBtn = document.getElementById('enableNotifBtn');
+        if (!badge || !enableBtn) return;
+
+        const currentPerm = permission || (("Notification" in window) ? Notification.permission : "unsupported");
+
+        if (currentPerm === "granted") {
+            badge.textContent = "Kích hoạt 🟢";
+            badge.className = "text-[10px] px-2 py-0.5 rounded-full font-semibold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400";
+            enableBtn.classList.add("opacity-60", "cursor-default");
+            enableBtn.innerHTML = `<span>✓ Đã bật 8h</span>`;
+            enableBtn.disabled = true;
+        } else if (currentPerm === "denied") {
+            badge.textContent = "Bị chặn 🔴";
+            badge.className = "text-[10px] px-2 py-0.5 rounded-full font-semibold bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-400";
+            enableBtn.innerHTML = `<span>Cần mở khóa</span>`;
+        } else {
+            badge.textContent = "Chờ cấp quyền 🟡";
+            badge.className = "text-[10px] px-2 py-0.5 rounded-full font-semibold bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400";
+        }
+    }
+
+    function checkTimeForReminder() {
+        const now = new Date();
+        const hours = now.getHours();
+        const minutes = now.getMinutes();
+
+        if (hours === 8 && minutes >= 0 && minutes <= 15) {
+            const todayStr = now.toDateString();
+            if (state.lastReminderDate !== todayStr) {
+                triggerMorningReminder();
+                state.lastReminderDate = todayStr;
+            }
+        }
+    }
+
+    function triggerMorningReminder(isTest = false) {
+        playMorningReminderSound();
+        const title = isTest ? "🔔 [Thử] Nhắc việc 8:00 AM" : "📅 Nhắc nhở buổi sáng 8:00!";
+        const body = "Đã đến 8:00 rồi! Hãy vào lên danh sách công việc trọng tâm hôm nay.";
+
+        showToast(`<strong>${title}</strong><br><span class="text-xs text-slate-400">${body}</span>`, "info", 6000);
+
+        if ("Notification" in window && Notification.permission === "granted") {
+            try {
+                const notif = new Notification(title, {
+                    body: body,
+                    tag: 'morning-reminder-task',
+                    icon: './favicon.svg',
+                    silent: true
+                });
+                notif.onclick = function() {
+                    window.focus();
+                    const input = document.getElementById('taskInput');
+                    if (input) input.focus();
+                };
+            } catch (e) {}
+        }
+    }
+
+    // -------------------------------------------------------------
+    // CLIPBOARD IMAGE PASTE (CTRL+V) & DRAG-DROP
+    // -------------------------------------------------------------
+    window.addEventListener('paste', (e) => {
+        const items = (e.clipboardData || e.originalEvent?.clipboardData)?.items;
+        if (!items) return;
+
+        for (let item of items) {
+            if (item.type.indexOf('image') !== -1) {
+                const file = item.getAsFile();
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    state.draftImages.push(event.target.result);
+                    renderDraftImages();
+                    showToast("📷 Đã dán ảnh từ Clipboard thành công!", "success");
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+    });
+
+    function handleImageFileSelect(e) {
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            if (!file.type.startsWith('image/')) continue;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                state.draftImages.push(event.target.result);
+                renderDraftImages();
+            };
+            reader.readAsDataURL(file);
+        }
+        e.target.value = '';
+    }
+
+    function removeDraftImage(index) {
+        state.draftImages.splice(index, 1);
+        renderDraftImages();
+    }
+
+    function renderDraftImages() {
+        const container = document.getElementById('imageDraftPreviewContainer');
+        if (!container) return;
+
+        if (state.draftImages.length === 0) {
+            container.innerHTML = '';
+            return;
+        }
+
+        container.innerHTML = state.draftImages.map((imgUrl, idx) => `
+            <div class="relative group w-11 h-11 rounded-lg border border-slate-300 dark:border-slate-700 overflow-hidden shrink-0">
+                <img src="${imgUrl}" class="w-full h-full object-cover cursor-pointer" onclick="openLightbox('${imgUrl}')" alt="Thumbnail">
+                <button type="button" onclick="removeDraftImage(${idx})" class="absolute top-0 right-0 bg-rose-600 text-white rounded-bl p-0.5 opacity-80 hover:opacity-100 transition" title="Xóa ảnh">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+        `).join('');
+    }
+
+    // -------------------------------------------------------------
+    // TASK CRUD OPERATIONS
+    // -------------------------------------------------------------
+    function handleAddTask() {
+        initAudio();
+        const input = document.getElementById('taskInput');
+        const linkInput = document.getElementById('taskLinkInput');
+        const notesInput = document.getElementById('taskNotesInput');
+
+        const text = input.value.trim();
+        if (!text) return;
+
+        const category = document.getElementById('taskCategorySelect').value;
+        const notes = notesInput ? notesInput.value.trim() : '';
+        const linkVal = linkInput ? linkInput.value.trim() : '';
+
+        const links = [];
+        if (linkVal) links.push(linkVal);
+
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        const matchedUrls = text.match(urlRegex);
+        if (matchedUrls) {
+            matchedUrls.forEach(url => {
+                if (!links.includes(url)) links.push(url);
+            });
+        }
+
+        const newTask = {
+            id: Date.now().toString(),
+            date: state.selectedDate || getTodayStr(),
+            title: text,
+            completed: false,
+            priority: state.selectedPriority,
+            category: category,
+            notes: notes,
+            links: links,
+            images: [...state.draftImages],
+            createdAt: new Date().toISOString()
+        };
+
+        state.tasks.unshift(newTask);
+
+        input.value = '';
+        if (linkInput) linkInput.value = '';
+        if (notesInput) notesInput.value = '';
+        state.draftImages = [];
+        renderDraftImages();
+
+        renderTasks();
+        updateProgress();
+        persistTasksLocally();
+        showToast("Đã thêm công việc mới!", "success");
+    }
+
+    function toggleTask(id) {
+        initAudio();
+        const task = state.tasks.find(t => t.id === id);
+        if (!task) return;
+
+        task.completed = !task.completed;
+        if (task.completed) {
+            playTaskCompleteSound();
+        }
+        renderTasks();
+        updateProgress();
+        persistTasksLocally();
+    }
+
+    function deleteTask(id) {
+        state.tasks = state.tasks.filter(t => t.id !== id);
+        renderTasks();
+        updateProgress();
+        persistTasksLocally();
+        showToast("Đã xóa công việc", "info");
+    }
+
+    function confirmClearCompleted() {
+        const currentTasks = getTasksForSelectedDate();
+        const completedCount = currentTasks.filter(t => t.completed).length;
+        if (completedCount === 0) {
+            showToast("Chưa có việc nào hoàn thành để xóa", "info");
+            return;
+        }
+
+        openModal(
+            "Xóa việc đã hoàn tất?",
+            `Bạn có chắc muốn xóa tất cả ${completedCount} việc đã xong trong ngày này?`,
+            () => {
+                state.tasks = state.tasks.filter(t => !(t.date === state.selectedDate && t.completed));
+                renderTasks();
+                updateProgress();
+                persistTasksLocally();
+                showToast(`Đã xóa ${completedCount} công việc đã xong!`, "success");
+            }
+        );
+    }
+
+    function setFilter(filter) {
+        state.currentFilter = filter;
+        document.querySelectorAll('.filter-tab').forEach(btn => {
+            btn.className = "filter-tab px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition shrink-0";
+        });
+
+        const activeMap = {
+            all: 'filterAll',
+            active: 'filterActive',
+            completed: 'filterCompleted',
+            high: 'filterHigh'
+        };
+
+        const activeBtn = document.getElementById(activeMap[filter]);
+        if (activeBtn) {
+            activeBtn.className = "filter-tab px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 transition shrink-0";
+        }
+        renderTasks();
+    }
+
+    function setPriority(prio) {
+        state.selectedPriority = prio;
+        const low = document.getElementById('btnPrioLow');
+        const med = document.getElementById('btnPrioMed');
+        const high = document.getElementById('btnPrioHigh');
+
+        const baseClass = "prio-opt px-2 py-0.5 rounded-md text-[11px] font-medium text-slate-600 dark:text-slate-300 transition";
+        low.className = baseClass;
+        med.className = baseClass;
+        high.className = baseClass;
+
+        if (prio === 'low') {
+            low.className = "prio-opt px-2 py-0.5 rounded-md text-[11px] font-medium bg-white dark:bg-slate-700 shadow-xs text-slate-900 dark:text-white transition";
+        } else if (prio === 'medium') {
+            med.className = "prio-opt px-2 py-0.5 rounded-md text-[11px] font-medium bg-white dark:bg-slate-700 shadow-xs text-amber-600 dark:text-amber-400 transition";
+        } else if (prio === 'high') {
+            high.className = "prio-opt px-2 py-0.5 rounded-md text-[11px] font-medium bg-white dark:bg-slate-700 shadow-xs text-rose-600 dark:text-rose-400 font-bold transition";
+        }
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>'"]/g, 
+            tag => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                "'": '&#39;',
+                '"': '&quot;'
+            }[tag] || tag)
+        );
+    }
+
+    function renderTasks() {
+        const listEl = document.getElementById('taskList');
+        const emptyState = document.getElementById('emptyState');
+        const dayTasks = getTasksForSelectedDate();
+
+        let filtered = dayTasks;
+        if (state.currentFilter === 'active') filtered = dayTasks.filter(t => !t.completed);
+        if (state.currentFilter === 'completed') filtered = dayTasks.filter(t => t.completed);
+        if (state.currentFilter === 'high') filtered = dayTasks.filter(t => t.priority === 'high');
+
+        document.getElementById('countAll').textContent = dayTasks.length;
+        document.getElementById('countActive').textContent = dayTasks.filter(t => !t.completed).length;
+        document.getElementById('countCompleted').textContent = dayTasks.filter(t => t.completed).length;
+        document.getElementById('countHigh').textContent = dayTasks.filter(t => t.priority === 'high').length;
+
+        if (filtered.length === 0) {
+            listEl.innerHTML = '';
+            emptyState.classList.remove('hidden');
+            emptyState.classList.add('flex');
+            return;
+        }
+
+        emptyState.classList.add('hidden');
+        emptyState.classList.remove('flex');
+
+        const categoryLabels = {
+            work: { label: 'Công việc', icon: '💼', color: 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300' },
+            personal: { label: 'Cá nhân', icon: '🌱', color: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' },
+            study: { label: 'Học tập', icon: '📚', color: 'bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300' },
+            health: { label: 'Sức khỏe', icon: '💪', color: 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300' }
+        };
+
+        listEl.innerHTML = filtered.map((task, index) => {
+            const cat = categoryLabels[task.category] || categoryLabels.work;
+            const isHigh = task.priority === 'high';
+            const indexStr = `#${String(index + 1).padStart(2, '0')}`;
+
+            const linksHtml = (task.links && task.links.length > 0) ? `
+                <div class="flex flex-wrap items-center gap-1.5 mt-1.5">
+                    ${task.links.map(link => `
+                        <a href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 text-[10px] hover:underline font-medium">
+                            <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                            <span class="max-w-[180px] truncate">${escapeHtml(link.replace(/^https?:\/\//, ''))}</span>
+                        </a>
+                    `).join('')}
+                </div>
+            ` : '';
+
+            const imagesHtml = (task.images && task.images.length > 0) ? `
+                <div class="flex flex-wrap items-center gap-1.5 mt-1.5">
+                    ${task.images.map(img => `
+                        <div class="w-12 h-12 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 cursor-pointer shadow-xs hover:opacity-90 transition" onclick="openLightbox('${img}')">
+                            <img src="${img}" class="w-full h-full object-cover" alt="Attachment">
+                        </div>
+                    `).join('')}
+                </div>
+            ` : '';
+
+            const notesHtml = task.notes ? `
+                <div class="mt-1 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
+                    📝 ${escapeHtml(task.notes)}
+                </div>
+            ` : '';
+
+            return `
+            <div class="task-enter group flex flex-col p-3 rounded-xl bg-white dark:bg-slate-900 border ${task.completed ? 'border-slate-100 dark:border-slate-800/60 opacity-60' : 'border-slate-200 dark:border-slate-800 hover:border-emerald-500/40'} shadow-xs transition-all">
+                <div class="flex items-start justify-between gap-2.5">
+                    <div class="flex items-start gap-2.5 flex-1 min-w-0">
+                        <button 
+                            type="button" 
+                            onclick="toggleTask('${task.id}')"
+                            class="mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${task.completed ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-300 dark:border-slate-600 hover:border-emerald-500 text-transparent'}"
+                            aria-label="Đánh dấu hoàn thành"
+                        >
+                            <svg class="w-3.5 h-3.5 stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                        </button>
+
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-baseline gap-1.5">
+                                <span class="font-mono text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/70 px-1.5 py-0.2 rounded border border-emerald-200/80 dark:border-emerald-800/80 shrink-0 select-none">${indexStr}</span>
+                                <p class="text-xs sm:text-sm font-medium ${task.completed ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-100'} break-words">
+                                    ${escapeHtml(task.title)}
+                                </p>
+                            </div>
+                            
+                            <div class="flex flex-wrap items-center gap-1.5 mt-1">
+                                <span class="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-medium px-1.5 py-0.2 rounded-md ${cat.color}">
+                                    ${cat.icon} ${cat.label}
+                                </span>
+                                ${isHigh ? '<span class="text-[9px] sm:text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-400">⚡ Gấp</span>' : ''}
+                            </div>
+                        </div>
+                    </div>
+
+                    <button 
+                        onclick="deleteTask('${task.id}')" 
+                        class="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition"
+                        title="Xóa việc"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                ${notesHtml}
+                ${linksHtml}
+                ${imagesHtml}
+            </div>
+            `;
+        }).join('');
+    }
+
+    function updateProgress() {
+        const dayTasks = getTasksForSelectedDate();
+        const total = dayTasks.length;
+        const done = dayTasks.filter(t => t.completed).length;
+        const percent = total === 0 ? 0 : Math.round((done / total) * 100);
+
+        document.getElementById('taskRatioText').textContent = `${done}/${total}`;
+        document.getElementById('progressPercentText').textContent = `${percent}%`;
+        document.getElementById('progressBar').style.width = `${percent}%`;
+
+        const greeting = document.getElementById('greetingTitle');
+        const isToday = state.selectedDate === getTodayStr();
+
+        if (!isToday) {
+            greeting.textContent = `Lịch sử ngày: ${state.selectedDate}`;
+        } else if (total > 0 && done === total) {
+            greeting.textContent = "Xuất sắc! Đã xong 100% mục tiêu! 🎉";
+        } else if (done > 0) {
+            greeting.textContent = "Bạn đang làm rất tốt, tiếp tục phát huy!";
+        } else {
+            greeting.textContent = "Chào buổi sáng!";
+        }
+    }
+
+    // -------------------------------------------------------------
+    // CALENDAR GRID & HISTORICAL INSPECTION
+    // -------------------------------------------------------------
+    let inspectedCalendarDate = null;
+
+    function inspectCalendarDay(dateStr) {
+        inspectedCalendarDate = dateStr;
+        const headingEl = document.getElementById('inspectorDateStr');
+        const listEl = document.getElementById('inspectorTasksList');
+        if (headingEl) headingEl.textContent = dateStr;
+
+        document.querySelectorAll('.cal-day-cell').forEach(cell => {
+            cell.classList.remove('ring-2', 'ring-amber-500', 'shadow-md');
+        });
+        const activeCell = document.getElementById(`cal-cell-${dateStr}`);
+        if (activeCell) {
+            activeCell.classList.add('ring-2', 'ring-amber-500', 'shadow-md');
+        }
+
+        const dayTasks = state.tasks.filter(t => t.date === dateStr);
+        if (!listEl) return;
+
+        if (dayTasks.length === 0) {
+            listEl.innerHTML = `<p class="text-slate-400 italic py-1">Ngày này chưa có công việc nào.</p>`;
+            return;
+        }
+
+        listEl.innerHTML = dayTasks.map((t, idx) => `
+            <div class="flex items-center justify-between p-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                    <span class="font-mono font-bold text-[10px] text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 px-1 rounded">#${String(idx + 1).padStart(2, '0')}</span>
+                    <span class="text-xs ${t.completed ? 'line-through text-slate-400' : 'text-slate-800 dark:text-slate-200 font-medium'} truncate">${escapeHtml(t.title)}</span>
+                    ${t.priority === 'high' ? '<span class="text-[9px] px-1 bg-rose-100 dark:bg-rose-950 text-rose-600 rounded font-bold">⚡ Gấp</span>' : ''}
+                </div>
+                <span class="text-[10px] font-semibold ${t.completed ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'} shrink-0 ml-1.5">
+                    ${t.completed ? '✓ Xong' : '○ Còn nợ'}
+                </span>
+            </div>
+        `).join('');
+    }
+
+    function selectDateFromInspector() {
+        if (inspectedCalendarDate) {
+            selectDate(inspectedCalendarDate);
+        } else {
+            selectDate(state.selectedDate);
+        }
+        switchTab('today');
+    }
+
+    function selectDate(dateKey) {
+        state.selectedDate = dateKey;
+        const isToday = dateKey === getTodayStr();
+        const badge = document.getElementById('selectedDateBadge');
+        const badgeLabel = document.getElementById('selectedDateLabel');
+        const returnBtn = document.getElementById('returnTodayBtn');
+
+        if (!isToday) {
+            if (badge) badge.classList.remove('hidden');
+            if (badgeLabel) badgeLabel.textContent = dateKey;
+            if (returnBtn) returnBtn.classList.remove('hidden');
+        } else {
+            if (badge) badge.classList.add('hidden');
+            if (returnBtn) returnBtn.classList.add('hidden');
+        }
+
+        renderTasks();
+        updateProgress();
+        showToast(`Đang xem việc ngày: ${dateKey}`, "info");
+    }
+
+    function changeCalendarMonth(offset) {
+        state.calendarMonth += offset;
+        if (state.calendarMonth < 0) {
+            state.calendarMonth = 11;
+            state.calendarYear -= 1;
+        } else if (state.calendarMonth > 11) {
+            state.calendarMonth = 0;
+            state.calendarYear += 1;
+        }
+        renderCalendarGrid();
+    }
+
+    function renderCalendarGrid() {
+        const monthNames = [
+            "Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6",
+            "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"
+        ];
+        const heading = document.getElementById('calMonthYearHeading');
+        if (heading) {
+            heading.textContent = `${monthNames[state.calendarMonth]} ${state.calendarYear}`;
+        }
+
+        const grid = document.getElementById('calendarGrid');
+        if (!grid) return;
+
+        const year = state.calendarYear;
+        const month = state.calendarMonth;
+        const firstDayIndex = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        let cellsHtml = '';
+        for (let i = 0; i < firstDayIndex; i++) {
+            cellsHtml += `<div class="min-h-[50px] sm:min-h-[70px] rounded-xl bg-slate-50/50 dark:bg-slate-800/20 border border-slate-100 dark:border-slate-800/40"></div>`;
+        }
+
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const tasksForDay = state.tasks.filter(t => t.date === dateStr);
+
+            const total = tasksForDay.length;
+            const completed = tasksForDay.filter(t => t.completed).length;
+            const pending = total - completed;
+            const highPrio = tasksForDay.filter(t => t.priority === 'high' && !t.completed).length;
+
+            const isToday = (dateStr === getTodayStr());
+            const isSelected = (dateStr === state.selectedDate);
+
+            let cellStyle = "border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900";
+            if (total > 0) {
+                if (pending > 0 || highPrio > 0) {
+                    cellStyle = "border-2 border-rose-400 bg-rose-50/70 dark:bg-rose-950/30";
+                } else if (completed === total) {
+                    cellStyle = "border-2 border-emerald-500 bg-emerald-50/80 dark:bg-emerald-950/40";
+                }
+            }
+
+            if (isSelected) {
+                cellStyle += " ring-2 ring-amber-500 shadow-xs";
+            }
+
+            cellsHtml += `
+            <div 
+                id="cal-cell-${dateStr}"
+                onclick="inspectCalendarDay('${dateStr}')" 
+                ondblclick="selectDate('${dateStr}')"
+                class="cal-day-cell min-h-[50px] sm:min-h-[70px] p-1 sm:p-1.5 rounded-xl cursor-pointer transition-all hover:scale-[1.02] flex flex-col justify-between ${cellStyle}"
+                title="Bấm để xem việc ngày ${dateStr}"
+            >
+                <div class="flex items-center justify-between">
+                    <span class="text-xs sm:text-sm font-extrabold ${isToday ? 'text-emerald-600 dark:text-emerald-400 underline font-black' : 'text-slate-800 dark:text-slate-200'}">
+                        ${day}
+                    </span>
+                    ${isToday ? '<span class="text-[8px] px-1 bg-emerald-500 text-white rounded font-bold">Nay</span>' : ''}
+                </div>
+
+                ${total > 0 ? `
+                    <div class="space-y-0.5 my-auto text-[8px] sm:text-[9px] font-mono leading-tight">
+                        <div class="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-bold">
+                            <span>✓${completed}</span>
+                            <span class="text-blue-600 dark:text-blue-400">Σ${total}</span>
+                        </div>
+                        ${pending > 0 ? `<div class="text-amber-600 dark:text-amber-400 font-semibold truncate">Nợ:${pending}</div>` : ''}
+                    </div>
+                ` : `
+                    <div class="text-[8px] text-slate-300 dark:text-slate-600 text-center">-</div>
+                `}
+            </div>
+            `;
+        }
+
+        grid.innerHTML = cellsHtml;
+    }
+
+    // -------------------------------------------------------------
+    // POMODORO TIMER & HABIT STREAK MANAGEMENT
+    // -------------------------------------------------------------
+    const quotes = [
+        {
+            title: `"Hành trình ngày thứ {day}: Khắc sâu nếp gấp não bộ để biến kỷ luật thành phản xạ tự nhiên."`,
+            desc: `💡 Giai đoạn hình thành liên kết nơ-ron: 66 ngày là chu kỳ tối ưu của não bộ để một hành động khó trở thành thói quen vô thức không cần nỗ lực cưỡng cầu.`
+        },
+        {
+            title: `"Định luật Hebbian: Các nơ-ron phát xung cùng nhau sẽ kết nối bền chặt cùng nhau."`,
+            desc: `💡 Mỗi lần bạn vượt qua trì hoãn để hoàn thành task, lớp vỏ bọc Myelin trên sợi trục thần kinh sẽ dày thêm, tăng tốc độ tư duy và tính kỷ luật tự thân.`
+        },
+        {
+            title: `"Làm chủ Dopamine nội tại: Chiến thắng việc khó đầu ngày để kích hoạt dòng chảy Focus."`,
+            desc: `💡 Não bộ tiết Dopamine khi ta hoàn thành từng mục tiêu nhỏ. Hãy đánh dấu hoàn tất task khó nhất (Eat the Frog) để tận hưởng nguồn năng lượng sảng khoái suốt cả ngày.`
+        },
+        {
+            title: `"Chúng ta là những gì chúng ta lặp đi lặp lại. Sự xuất sắc không phải là hành động, mà là một thói quen."`,
+            desc: `💡 Thói quen được điều khiển bởi Hạch Nền (Basal Ganglia). Khi hành động được tự động hóa, vỏ não trước trán sẽ tiết kiệm tối đa năng lượng cho các quyết định chiến lược.`
+        }
+    ];
+
+    function updateStreakDisplay() {
+        const streakCountEl = document.getElementById('streakCountText');
+        if (streakCountEl) streakCountEl.textContent = `${state.streakDays} ngày`;
+        const streakDayNum = document.getElementById('streakDayNum');
+        if (streakDayNum) streakDayNum.textContent = state.streakDays;
+        const streakBar = document.getElementById('streakProgressBar');
+        if (streakBar) {
+            const pct = Math.min(100, Math.round((state.streakDays / 66) * 100));
+            streakBar.style.width = `${pct}%`;
+        }
+    }
+
+    function incrementStreak() {
+        state.streakDays++;
+        localStorage.setItem('focusdaily_streak_days', state.streakDays.toString());
+        updateStreakDisplay();
+        persistTasksLocally();
+        showToast(`🔥 Tuyệt vời! Bạn đã duy trì chuỗi ${state.streakDays} ngày liên tiếp!`, 'success');
+    }
+
+    function resetSloganToOriginal() {
+        const titleEl = document.getElementById('streakSloganTitle');
+        const descEl = document.getElementById('streakSloganDesc');
+        if (titleEl) {
+            titleEl.innerHTML = `"Hành trình ngày thứ <span id="streakDayNum" class="text-emerald-400">${state.streakDays}</span>: Khắc sâu nếp gấp não bộ để biến kỷ luật thành phản xạ tự nhiên."`;
+        }
+        if (descEl) {
+            descEl.textContent = "💡 Giai đoạn hình thành liên kết nơ-ron: 66 ngày là chu kỳ tối ưu của não bộ để một hành động khó trở thành thói quen vô thức.";
+        }
+        showToast("Đã khôi phục châm ngôn gốc", "info");
+    }
+
+    function refreshDailyQuote() {
+        state.currentQuoteIndex = (state.currentQuoteIndex + 1) % quotes.length;
+        const q = quotes[state.currentQuoteIndex];
+        const titleEl = document.getElementById('streakSloganTitle');
+        const descEl = document.getElementById('streakSloganDesc');
+        if (titleEl) {
+            titleEl.innerHTML = q.title.replace('{day}', `<span id="streakDayNum" class="text-emerald-400">${state.streakDays}</span>`);
+        }
+        if (descEl) {
+            descEl.textContent = q.desc;
+        }
+    }
+
+    function togglePomodoro() {
+        initAudio();
+        const startBtn = document.getElementById('pomoStartBtn');
+        const statusText = document.getElementById('pomoStatusText');
+
+        if (state.pomodoro.isRunning) {
+            clearInterval(state.pomodoro.interval);
+            state.pomodoro.isRunning = false;
+            startBtn.textContent = "Tiếp tục";
+            statusText.textContent = "Tạm dừng";
+            statusText.className = "text-[10px] px-2 py-0.5 rounded-full font-medium bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400";
+        } else {
+            state.pomodoro.isRunning = true;
+            startBtn.textContent = "Tạm dừng";
+            statusText.textContent = "Đang focus 🔥";
+            statusText.className = "text-[10px] px-2 py-0.5 rounded-full font-medium bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400";
+
+            state.pomodoro.interval = setInterval(() => {
+                state.pomodoro.timeLeft--;
+                renderPomodoro();
+                if (state.pomodoro.timeLeft <= 0) {
+                    clearInterval(state.pomodoro.interval);
+                    state.pomodoro.isRunning = false;
+                    playMorningReminderSound();
+                    showToast("🎉 Hết giờ 25 phút Pomodoro! Hãy nghỉ ngơi 5 phút.", "success", 6000);
+                    resetPomodoro();
+                }
+            }, 1000);
+        }
+    }
+
+    function resetPomodoro() {
+        if (state.pomodoro.interval) clearInterval(state.pomodoro.interval);
+        state.pomodoro.timeLeft = 25 * 60;
+        state.pomodoro.isRunning = false;
+        document.getElementById('pomoStartBtn').textContent = "Bắt đầu";
+        const statusText = document.getElementById('pomoStatusText');
+        statusText.textContent = "Nghỉ";
+        statusText.className = "text-[10px] px-2 py-0.5 rounded-full font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300";
+        renderPomodoro();
+    }
+
+    function renderPomodoro() {
+        const mins = Math.floor(state.pomodoro.timeLeft / 60);
+        const secs = state.pomodoro.timeLeft % 60;
+        document.getElementById('pomoDisplay').textContent = 
+            `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    // -------------------------------------------------------------
+    // TOASTS, MODALS, LIGHTBOX & THEME
+    // -------------------------------------------------------------
+    function showToast(contentHtml, type = "info", duration = 4000) {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+
+        const borderColors = {
+            success: 'border-emerald-500 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100',
+            warning: 'border-amber-500 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100',
+            info: 'border-blue-500 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100'
+        };
+
+        toast.className = `pointer-events-auto p-3 rounded-xl shadow-lg border-l-4 ${borderColors[type]} border-y border-r border-slate-200 dark:border-slate-800 text-xs flex items-start justify-between gap-2.5 transform transition-all duration-200 opacity-0 translate-y-2`;
+        toast.innerHTML = `
+            <div class="flex-1 leading-snug">${contentHtml}</div>
+            <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-sm font-bold">&times;</button>
+        `;
+
+        container.appendChild(toast);
+        requestAnimationFrame(() => {
+            toast.classList.remove('opacity-0', 'translate-y-2');
+        });
+
+        setTimeout(() => {
+            toast.classList.add('opacity-0', 'translate-y-2');
+            setTimeout(() => toast.remove(), 250);
+        }, duration);
+    }
+
+    let currentModalConfirmHandler = null;
+    function openModal(title, description, onConfirm) {
+        const modal = document.getElementById('customModal');
+        document.getElementById('modalTitle').textContent = title;
+        document.getElementById('modalDesc').textContent = description;
+        currentModalConfirmHandler = onConfirm;
+        modal.classList.remove('hidden');
+    }
+
+    function closeModal() {
+        document.getElementById('customModal').classList.add('hidden');
+        currentModalConfirmHandler = null;
+    }
+
+    document.getElementById('modalCancelBtn').onclick = closeModal;
+    document.getElementById('modalConfirmBtn').onclick = () => {
+        if (currentModalConfirmHandler) currentModalConfirmHandler();
+        closeModal();
+    };
+
+    function openLightbox(imgUrl) {
+        const modal = document.getElementById('lightboxModal');
+        const img = document.getElementById('lightboxImage');
+        if (!modal || !img) return;
+        img.src = imgUrl;
+        modal.classList.remove('hidden');
+    }
+
+    function closeLightbox() {
+        const modal = document.getElementById('lightboxModal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeLightbox();
+            closeGoogleConfigModal();
+            closeModal();
+        }
+    });
+
+    function updateClock() {
+        const now = new Date();
+        const timeStr = now.toTimeString().split(' ')[0];
+        const clockEl = document.getElementById('liveClock');
+        if (clockEl) clockEl.textContent = timeStr;
+        const mockClock = document.getElementById('mockClock');
+        if (mockClock) {
+            const shortTime = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+            mockClock.textContent = shortTime;
+        }
+    }
+
+    function initDateDisplay() {
+        const now = new Date();
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        const dateString = now.toLocaleDateString('vi-VN', options);
+        document.getElementById('displayDate').textContent = dateString;
+    }
+
+    function applyTheme() {
+        const html = document.documentElement;
+        const sun = document.getElementById('themeIconSun');
+        const moon = document.getElementById('themeIconMoon');
+
+        if (state.theme === 'dark') {
+            html.classList.add('dark');
+            if (sun) sun.classList.remove('hidden');
+            if (moon) moon.classList.add('hidden');
+        } else {
+            html.classList.remove('dark');
+            if (sun) sun.classList.add('hidden');
+            if (moon) moon.classList.remove('hidden');
+        }
+    }
+
+    function toggleTheme() {
+        state.theme = (state.theme === 'dark') ? 'light' : 'dark';
+        localStorage.setItem('focusdaily_theme', state.theme);
+        applyTheme();
+    }
+
+    // -------------------------------------------------------------
+    // APP INITIALIZATION ON WINDOW LOAD
+    // -------------------------------------------------------------
+    window.addEventListener('load', () => {
+        applyTheme();
+        applyPhoneFrameMode();
+        initDateDisplay();
+        updateClock();
+        state.clockIntervalId = setInterval(updateClock, 1000);
+
+        checkTimeForReminder();
+        state.reminderIntervalId = setInterval(checkTimeForReminder, 60000);
+
+        updatePermissionUI();
+        renderTasks();
+        updateProgress();
+        renderPomodoro();
+        updateStreakDisplay();
+
+        // Initialize GIS & Auto Restore Session
+        initGoogleAuthClient();
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js').catch(err => {
+                console.warn("SW Registration:", err);
+            });
+        }
+
+        // Bind interactive elements
+        document.getElementById('themeToggleBtn').addEventListener('click', toggleTheme);
+        document.getElementById('enableNotifBtn').addEventListener('click', () => {
+            initAudio();
+            requestNotificationPermission(true);
+        });
+        document.getElementById('testNotifBtn').addEventListener('click', () => {
+            initAudio();
+            triggerMorningReminder(true);
+        });
+
+        // Request notification permission smoothly
+        requestNotificationPermission(false);
+    });
+</script>
+</body>
+</html>
