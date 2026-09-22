@@ -951,11 +951,16 @@
         if (autoSyncTimer) clearTimeout(autoSyncTimer);
         const pill = document.getElementById('googleSyncPill');
         if (pill) {
-            pill.className = 'w-2 h-2 rounded-full bg-amber-400 animate-ping';
+            pill.className = 'w-2 h-2 rounded-full bg-blue-400 animate-ping';
         }
+        const syncDot = document.getElementById('syncDot');
+        const syncSubText = document.getElementById('syncSubText');
+        if (syncDot) syncDot.className = 'w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse shrink-0';
+        if (syncSubText) syncSubText.textContent = 'Phát hiện thay đổi, đang tự động lưu Drive...';
+
         autoSyncTimer = setTimeout(() => {
             syncToGoogleDrive(false);
-        }, 2000);
+        }, 1500);
     }
 
     function getTasksForSelectedDate() {
@@ -1436,7 +1441,7 @@
 
             if (pill) pill.className = 'w-2 h-2 rounded-full bg-emerald-500';
             if (syncDot) syncDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0 shadow-sm shadow-emerald-500/50';
-            if (syncSubText) syncSubText.textContent = 'Đã sao lưu lúc ' + nowStr;
+            if (syncSubText) syncSubText.textContent = (isManual ? 'Đã sao lưu lúc ' : 'Đã tự động lưu Drive lúc ') + nowStr;
             if (isManual) showToast("☁️ Đã lưu toàn bộ việc lên Google Drive thành công!", "success");
 
         } catch (err) {
