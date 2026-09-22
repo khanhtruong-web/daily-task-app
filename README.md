@@ -3,7 +3,8 @@
 Ứng dụng quản lý công việc trọng tâm hằng ngày, đồng hồ tập trung Pomodoro, theo dõi chuỗi thói quen kỷ luật 66 ngày, và đồng bộ tự động 2 chiều với **Google Drive cá nhân**.
 
 🌐 **GitHub:** [https://github.com/khanhtruong-web/daily-task-app](https://github.com/khanhtruong-web/daily-task-app)  
-🚀 **Vercel:** Triển khai tự động liên kết với tài khoản `khanh-truong`
+🚀 **Live App (Vercel):** [https://daily-task-app-flame.vercel.app](https://daily-task-app-flame.vercel.app)  
+📱 **Vercel Dashboard:** [https://vercel.com/khanh-truong/daily-task-app](https://vercel.com/khanh-truong/daily-task-app)
 
 ---
 

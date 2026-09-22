@@ -35,5 +35,6 @@ echo.
 echo ============================================================
 echo  Pushed successfully to GitHub!
 echo  Vercel will auto-deploy the latest version in ~30 seconds.
+echo  Live URL: https://daily-task-app-flame.vercel.app/
 echo ============================================================
 pause
