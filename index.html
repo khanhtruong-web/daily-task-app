@@ -22,7 +22,7 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
 
     <script>
         tailwind.config = {
@@ -30,16 +30,16 @@
             theme: {
                 extend: {
                     fontFamily: {
-                        sans: ['Inter', 'system-ui', '-apple-system', 'Arial', 'sans-serif'],
-                        mono: ['ui-monospace', 'SFMono-Regular', 'Consolas', 'monospace'],
+                        sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Hiragino Sans"', '"Hiragino Kaku Gothic ProN"', '"Yu Gothic"', '"Noto Sans JP"', 'Arial', 'sans-serif'],
+                        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
                     },
                     colors: {
                         brand: {
-                            50: '#f0fdf4',
-                            100: '#dcfce7',
-                            500: '#22c55e',
-                            600: '#16a34a',
-                            700: '#15803d',
+                            50: '#f4fbf6',
+                            100: '#e6f7ec',
+                            500: '#16a34a',
+                            600: '#15803d',
+                            700: '#166534',
                         }
                     }
                 }
@@ -56,9 +56,15 @@
             --sar: env(safe-area-inset-right, 0px);
         }
 
+        * {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
         body {
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
+            text-rendering: optimizeLegibility;
         }
 
         /* Smooth custom scrollbar */
@@ -255,6 +261,23 @@
             <!-- SECTION 1: TODAY PLAN & GREETING HERO -->
             <div id="viewToday" class="space-y-4 sm:space-y-5">
                 
+                <!-- Japanese Zen Style Minimalist Storage & Sync Status Bar -->
+                <div id="storageSyncBar" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 shadow-2xs text-xs">
+                    <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                        <span id="syncDot" class="w-2.5 h-2.5 rounded-full bg-slate-400 shrink-0"></span>
+                        <div class="min-w-0 flex-1 flex flex-col sm:flex-row sm:items-center gap-x-2">
+                            <span id="syncStateText" class="font-semibold text-slate-800 dark:text-slate-200 truncate">Bộ nhớ: Thiết bị này (Offline)</span>
+                            <span id="syncSubText" class="text-[11px] text-slate-400 truncate">Mọi thay đổi được lưu tự động trên điện thoại</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1.5 shrink-0 ml-2">
+                        <button id="syncActionBtn" onclick="handleSyncActionBtn()" class="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-800/60 hover:bg-emerald-100 transition active:scale-95 flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                            <span id="syncActionBtnLabel">Kết nối Drive</span>
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Greeting & Progress Hero -->
                 <section class="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-5">
                     <!-- Today's Greeting & Progress -->
@@ -975,7 +998,12 @@
     // GOOGLE IDENTITY SERVICES & DRIVE PERSISTENT LOGIN ENGINE
     // -------------------------------------------------------------
     function getGoogleClientId() {
-        return localStorage.getItem(GOOGLE_CONFIG.storageKeyClientId) || GOOGLE_CONFIG.defaultClientId;
+        const stored = localStorage.getItem(GOOGLE_CONFIG.storageKeyClientId);
+        if (stored && stored.includes('852174664871')) {
+            localStorage.removeItem(GOOGLE_CONFIG.storageKeyClientId);
+            return GOOGLE_CONFIG.defaultClientId;
+        }
+        return stored || GOOGLE_CONFIG.defaultClientId;
     }
 
     function initGoogleAuthClient() {
@@ -1038,7 +1066,10 @@
                 }
             } catch (e) {
                 console.warn("Could not restore session:", e);
+                updateGoogleAuthUI(false);
             }
+        } else {
+            updateGoogleAuthUI(false);
         }
     }
 
@@ -1108,6 +1139,14 @@
         showToast("Đã đăng xuất tài khoản Google", "info");
     }
 
+    function handleSyncActionBtn() {
+        if (googleAccessToken) {
+            syncToGoogleDrive(true);
+        } else {
+            handleGoogleLogin();
+        }
+    }
+
     function updateGoogleAuthUI(isLoggedIn) {
         const label = document.getElementById('googleAuthLabel');
         const pill = document.getElementById('googleSyncPill');
@@ -1121,6 +1160,13 @@
         const driveTabUserEmail = document.getElementById('driveTabUserEmail');
         const driveTabLoginBtn = document.getElementById('driveTabLoginBtn');
         const driveTabLogoutBtn = document.getElementById('driveTabLogoutBtn');
+
+        // Mobile Minimalist Storage & Sync Status Elements
+        const syncDot = document.getElementById('syncDot');
+        const syncStateText = document.getElementById('syncStateText');
+        const syncSubText = document.getElementById('syncSubText');
+        const syncActionBtnLabel = document.getElementById('syncActionBtnLabel');
+        const syncActionBtn = document.getElementById('syncActionBtn');
 
         if (isLoggedIn && googleUser) {
             const displayName = googleUser.given_name || googleUser.name || 'Google User';
@@ -1143,6 +1189,14 @@
             if (driveTabUserEmail) driveTabUserEmail.textContent = googleUser.email || '';
             if (driveTabLoginBtn) driveTabLoginBtn.classList.add('hidden');
             if (driveTabLogoutBtn) driveTabLogoutBtn.classList.remove('hidden');
+
+            // Mobile status bar connected state
+            if (syncDot) syncDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0 shadow-sm shadow-emerald-500/50';
+            if (syncStateText) syncStateText.textContent = 'Drive: ' + (googleUser.email || googleUser.name);
+            const lastSync = localStorage.getItem(GOOGLE_CONFIG.storageKeyLastSync);
+            if (syncSubText) syncSubText.textContent = lastSync ? ('Đã sao lưu lúc ' + lastSync) : 'Tự động sao lưu 2 chiều';
+            if (syncActionBtnLabel) syncActionBtnLabel.textContent = 'Lưu Drive';
+            if (syncActionBtn) syncActionBtn.className = 'px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-800/60 hover:bg-emerald-100 transition active:scale-95 flex items-center gap-1';
         } else {
             if (label) label.textContent = "Đăng nhập Drive";
             if (pill) pill.classList.add('hidden');
@@ -1151,6 +1205,13 @@
             if (driveTabUserEmail) driveTabUserEmail.textContent = 'Đăng nhập để đồng bộ task tự động trên mọi thiết bị';
             if (driveTabLoginBtn) driveTabLoginBtn.classList.remove('hidden');
             if (driveTabLogoutBtn) driveTabLogoutBtn.classList.add('hidden');
+
+            // Mobile status bar offline state
+            if (syncDot) syncDot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0';
+            if (syncStateText) syncStateText.textContent = 'Bộ nhớ: Thiết bị này (Offline)';
+            if (syncSubText) syncSubText.textContent = 'Mọi thay đổi được lưu tự động trên điện thoại';
+            if (syncActionBtnLabel) syncActionBtnLabel.textContent = 'Kết nối Drive';
+            if (syncActionBtn) syncActionBtn.className = 'px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-slate-200 transition active:scale-95 flex items-center gap-1';
         }
     }
 
@@ -1211,6 +1272,10 @@
 
         const pill = document.getElementById('googleSyncPill');
         if (pill) pill.className = 'w-2 h-2 rounded-full bg-blue-500 animate-pulse';
+        const syncDot = document.getElementById('syncDot');
+        const syncSubText = document.getElementById('syncSubText');
+        if (syncDot) syncDot.className = 'w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse shrink-0';
+        if (syncSubText) syncSubText.textContent = 'Đang lưu lên Google Drive...';
 
         try {
             const payload = {
@@ -1262,6 +1327,8 @@
                 if (timeEl) timeEl.textContent = nowStr;
 
                 if (pill) pill.className = 'w-2 h-2 rounded-full bg-emerald-500';
+                if (syncDot) syncDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0 shadow-sm shadow-emerald-500/50';
+                if (syncSubText) syncSubText.textContent = 'Đã sao lưu lúc ' + nowStr;
                 if (isManual) showToast("☁️ Đã lưu toàn bộ việc lên Google Drive!", "success");
             } else {
                 throw new Error("Upload response status: " + uploadRes?.status);
@@ -1269,6 +1336,8 @@
         } catch (err) {
             console.error("Google Drive sync error:", err);
             if (pill) pill.className = 'w-2 h-2 rounded-full bg-rose-500';
+            if (syncDot) syncDot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0';
+            if (syncSubText) syncSubText.textContent = 'Lỗi lưu Drive (Dữ liệu vẫn an toàn trên máy)';
             if (isManual) showToast("Lỗi lưu Drive. Hãy kiểm tra kết nối mạng", "warning");
         }
     }
@@ -1308,6 +1377,11 @@
                     localStorage.setItem(GOOGLE_CONFIG.storageKeyLastSync, nowStr);
                     const timeEl = document.getElementById('lastSyncTimeText');
                     if (timeEl) timeEl.textContent = nowStr;
+
+                    const syncDot = document.getElementById('syncDot');
+                    const syncSubText = document.getElementById('syncSubText');
+                    if (syncDot) syncDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0 shadow-sm shadow-emerald-500/50';
+                    if (syncSubText) syncSubText.textContent = 'Đã tải từ Drive lúc ' + nowStr;
 
                     if (isManual) showToast(`☁️ Đã tải về ${state.tasks.length} task mới nhất từ Google Drive!`, "success");
                 }
